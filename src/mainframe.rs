@@ -5,8 +5,18 @@ use crate::{
     interactible::{Activated, Interactible},
 };
 
+fn mainframe_point_light() -> PointLight {
+    PointLight {
+        range: 3.,
+        radius: 0.3,
+        intensity: 0.,
+        color: Color::linear_rgb(0.2, 0.5, 1.0),
+        ..default()
+    }
+}
+
 #[derive(Component)]
-#[require(Interactible = Interactible::radius(1.9))]
+#[require(Interactible = Interactible::radius(1.9), PointLight = mainframe_point_light())]
 pub struct Mainframe {
     /// Whether the player has activate the mainframe.
     pub active: bool,
@@ -30,19 +40,22 @@ pub fn activate_computer_system(mut mainframe: Query<(&mut Mainframe, &mut Activ
 
 pub fn recolor_computer(
     mut commands: Commands,
-    mainframe: Query<(Entity, &Mainframe), Changed<Mainframe>>,
+    mut mainframe: Query<(Entity, &Mainframe, &mut PointLight), Changed<Mainframe>>,
     common: Res<Common>,
 ) {
-    for (entity, mainframe) in mainframe.iter() {
+    for (entity, mainframe, mut light) in mainframe.iter_mut() {
         println!("visit compute {:?}", entity);
         if mainframe.active {
             commands
                 .entity(entity)
                 .insert(MeshMaterial3d(common.material_active.clone()));
+            light.intensity = light_consts::lux::RAW_SUNLIGHT;
         } else {
             commands
                 .entity(entity)
                 .insert(MeshMaterial3d(common.material_yellow.clone()));
+
+            light.intensity = 0.0;
         }
     }
 }

@@ -5,7 +5,14 @@ pub mod mainframe;
 pub mod player;
 use avian3d::prelude::*;
 
-use bevy::prelude::*;
+use bevy::{
+    core_pipeline::{
+        bloom::{Bloom, BloomPrefilter},
+        tonemapping::Tonemapping,
+    },
+    prelude::*,
+    render::view::{ColorGrading, ColorGradingGlobal},
+};
 use common::{Common, CommonPlugin, setup_common};
 use draggable::{Draggable, DraggablePlugin};
 use interactible::InteractiblePlugin;
@@ -74,6 +81,26 @@ fn setup(mut commands: Commands, common: Res<Common>) {
 
     commands.spawn((
         Camera3d::default(),
+        Camera {
+            hdr: true,
+
+            ..default()
+        },
+        Tonemapping::SomewhatBoringDisplayTransform,
+        ColorGrading {
+            global: ColorGradingGlobal {
+                post_saturation: 1.25,
+                ..default()
+            },
+            ..default()
+        },
+        Bloom {
+            prefilter: BloomPrefilter {
+                threshold: 0.6,
+                threshold_softness: 0.2,
+            },
+            ..Bloom::NATURAL
+        },
         Transform::from_xyz(0.0, 17., 14.0).looking_at(Vec3::new(0., 1., 0.), Vec3::Y),
         PlayerCamera,
     ));
