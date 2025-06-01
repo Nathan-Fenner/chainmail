@@ -1,4 +1,5 @@
 pub mod common;
+pub mod draggable;
 pub mod interactible;
 pub mod mainframe;
 pub mod player;
@@ -6,6 +7,7 @@ use avian3d::prelude::*;
 
 use bevy::prelude::*;
 use common::{Common, CommonPlugin, setup_common};
+use draggable::{Draggable, DraggablePlugin};
 use interactible::InteractiblePlugin;
 use mainframe::{Mainframe, MainframePlugin};
 use player::{Player, PlayerCamera, PlayerPlugin};
@@ -18,6 +20,7 @@ fn main() {
             PlayerPlugin,
             InteractiblePlugin,
             MainframePlugin,
+            DraggablePlugin,
         ))
         .add_plugins(CommonPlugin)
         .add_systems(Startup, (setup_common, setup).chain())
@@ -45,6 +48,18 @@ fn setup(mut commands: Commands, common: Res<Common>) {
             RigidBody::Static,
             Collider::cuboid(1., 1., 1.),
             Mainframe { active: false },
+        ));
+
+        commands.spawn((
+            Mesh3d(common.mesh_cube.clone()),
+            MeshMaterial3d(common.material_red.clone()),
+            Transform::from_translation(
+                Vec3::new(x as f32, 1.2, z as f32) + Vec3::new(-3., 2., 0.),
+            )
+            .with_scale(Vec3::splat(0.8)),
+            RigidBody::Dynamic,
+            Collider::cuboid(0.8, 0.8, 0.8),
+            Draggable::default(),
         ));
     }
 
