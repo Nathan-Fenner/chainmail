@@ -16,6 +16,7 @@ opt-level = 1
 opt-level = 3
 
 [dependencies]
+avian3d = "0.3.0"
 bevy = "0.16"
 
 # These lints may be important signals about code quality, but normal Bevy code
