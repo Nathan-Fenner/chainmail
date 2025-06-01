@@ -7,6 +7,21 @@ use crate::player::Player;
 #[require(Activated = Activated{activated: false})]
 pub struct Interactible {
     pub radius: f32,
+    pub priority: i32,
+}
+
+impl Interactible {
+    /// Create a new `Interactible` with the specified radius and 0 priority.
+    pub fn radius(radius: f32) -> Self {
+        Self {
+            radius,
+            priority: 0,
+        }
+    }
+    /// Update the priority of the input.
+    pub fn with_priority(self, priority: i32) -> Self {
+        Self { priority, ..self }
+    }
 }
 
 /// Tracks when the user interacts with an item.
@@ -67,6 +82,7 @@ fn set_nearest_interactible_system(
         #[derive(Copy, Clone)]
         struct Candidate {
             distance: f32,
+            priority: i32,
             entity: Entity,
         }
 
@@ -81,8 +97,15 @@ fn set_nearest_interactible_system(
                 continue;
             }
 
-            if closest.map(|c| c.distance > distance).unwrap_or(true) {
-                closest = Some(Candidate { distance, entity });
+            if closest
+                .map(|c| (-c.priority, c.distance) > (-interactible.priority, distance))
+                .unwrap_or(true)
+            {
+                closest = Some(Candidate {
+                    distance,
+                    priority: interactible.priority,
+                    entity,
+                });
             }
         }
 

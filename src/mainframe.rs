@@ -6,7 +6,7 @@ use crate::{
 };
 
 #[derive(Component)]
-#[require(Interactible = Interactible{radius: 1.9})]
+#[require(Interactible = Interactible::radius(1.9))]
 pub struct Mainframe {
     /// Whether the player has activate the mainframe.
     pub active: bool,
