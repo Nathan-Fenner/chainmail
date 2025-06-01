@@ -1,10 +1,12 @@
 pub mod common;
+pub mod interactible;
 pub mod mainframe;
 pub mod player;
 use avian3d::prelude::*;
 
 use bevy::prelude::*;
 use common::{Common, CommonPlugin, setup_common};
+use interactible::InteractiblePlugin;
 use mainframe::{Mainframe, MainframePlugin};
 use player::{Player, PlayerCamera, PlayerPlugin};
 
@@ -14,6 +16,7 @@ fn main() {
             DefaultPlugins.set(ImagePlugin::default_nearest()),
             PhysicsPlugins::default(),
             PlayerPlugin,
+            InteractiblePlugin,
             MainframePlugin,
         ))
         .add_plugins(CommonPlugin)

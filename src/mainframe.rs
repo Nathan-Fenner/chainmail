@@ -1,8 +1,12 @@
 use bevy::prelude::*;
 
-use crate::{common::Common, player::Player};
+use crate::{
+    common::Common,
+    interactible::{Activated, Interactible},
+};
 
 #[derive(Component)]
+#[require(Interactible = Interactible{radius: 1.9})]
 pub struct Mainframe {
     /// Whether the player has activate the mainframe.
     pub active: bool,
@@ -12,26 +16,13 @@ pub struct MainframePlugin;
 
 impl Plugin for MainframePlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Update, (activate_computer, recolor_computer).chain());
+        app.add_systems(Update, (activate_computer_system, recolor_computer).chain());
     }
 }
 
-pub fn activate_computer(
-    player: Query<(&GlobalTransform, &Player)>,
-    mut mainframe: Query<(&GlobalTransform, &mut Mainframe)>,
-    key: Res<ButtonInput<KeyCode>>,
-) {
-    let Ok((player, _)) = player.single() else {
-        return;
-    };
-
-    for (mainframe_position, mut mainframe) in mainframe.iter_mut() {
-        if key.just_pressed(KeyCode::KeyE)
-            && mainframe_position
-                .translation()
-                .distance(player.translation())
-                < 1.9
-        {
+pub fn activate_computer_system(mut mainframe: Query<(&mut Mainframe, &mut Activated)>) {
+    for (mut mainframe, mut activated) in mainframe.iter_mut() {
+        if activated.take_activated() {
             mainframe.active = !mainframe.active;
         }
     }
