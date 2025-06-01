@@ -5,6 +5,8 @@ pub struct Common {
     pub mesh_cube: Handle<Mesh>,
     pub mesh_sphere: Handle<Mesh>,
     pub material_gray: Handle<StandardMaterial>,
+    pub material_yellow: Handle<StandardMaterial>,
+    pub material_active: Handle<StandardMaterial>,
 }
 
 #[derive(Default)]
@@ -27,6 +29,17 @@ pub fn setup_common(
         mesh_sphere: meshes.add(Sphere::default()),
         material_gray: materials.add(StandardMaterial {
             base_color: Color::linear_rgb(0.4, 0.5, 0.6),
+            perceptual_roughness: 1.0,
+            ..default()
+        }),
+        material_yellow: materials.add(StandardMaterial {
+            base_color: Color::linear_rgb(0.9, 0.8, 0.2),
+            perceptual_roughness: 1.0,
+            ..default()
+        }),
+        material_active: materials.add(StandardMaterial {
+            base_color: Color::linear_rgb(0.4, 0.5, 1.0),
+            emissive: LinearRgba::rgb(0.3, 0.6, 1.0),
             perceptual_roughness: 1.0,
             ..default()
         }),

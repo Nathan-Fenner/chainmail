@@ -1,9 +1,11 @@
 pub mod common;
+pub mod mainframe;
 pub mod player;
 use avian3d::prelude::*;
 
 use bevy::prelude::*;
 use common::{Common, CommonPlugin, setup_common};
+use mainframe::{Mainframe, MainframePlugin};
 use player::{Player, PlayerCamera, PlayerPlugin};
 
 fn main() {
@@ -12,6 +14,7 @@ fn main() {
             DefaultPlugins.set(ImagePlugin::default_nearest()),
             PhysicsPlugins::default(),
             PlayerPlugin,
+            MainframePlugin,
         ))
         .add_plugins(CommonPlugin)
         .add_systems(Startup, (setup_common, setup).chain())
@@ -29,6 +32,17 @@ fn setup(mut commands: Commands, common: Res<Common>) {
                 Collider::cuboid(1., 1., 1.),
             ));
         }
+    }
+
+    for (x, z) in [(-3, -3), (5, 2), (8, 8)] {
+        commands.spawn((
+            Mesh3d(common.mesh_cube.clone()),
+            MeshMaterial3d(common.material_gray.clone()),
+            Transform::from_translation(Vec3::new(x as f32, 1.2, z as f32)),
+            RigidBody::Static,
+            Collider::cuboid(1., 1., 1.),
+            Mainframe { active: false },
+        ));
     }
 
     commands.spawn((
@@ -51,7 +65,7 @@ fn setup(mut commands: Commands, common: Res<Common>) {
         MeshMaterial3d(common.material_gray.clone()),
         Transform::from_translation(Vec3::new(0.0, 7., 0.)),
         RigidBody::Dynamic,
-        Collider::sphere(1.),
+        Collider::sphere(0.5),
         Player {},
     ));
 }
