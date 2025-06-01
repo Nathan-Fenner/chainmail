@@ -1,5 +1,5 @@
 use avian3d::prelude::*;
-use bevy::{math::VectorSpace, prelude::*};
+use bevy::prelude::*;
 
 use crate::{
     interactible::{Activated, Interactible},
@@ -22,27 +22,33 @@ impl Plugin for DraggablePlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(
             FixedUpdate,
-            (pick_draggable_system, run_draggable_system).chain(),
+            (
+                pick_draggable_system,
+                update_draggable_system,
+                run_draggable_system,
+            )
+                .chain(),
         );
     }
 }
-pub fn pick_draggable_system(
-    mut draggable: Query<(&mut Draggable, &mut Activated, &mut Interactible)>,
-) {
-    for (mut draggable, mut activated, mut interactive) in draggable.iter_mut() {
-        if !activated.activated {
-            continue;
-        }
+pub fn pick_draggable_system(mut draggable: Query<(&mut Draggable, &mut Activated)>) {
+    for (mut draggable, mut activated) in draggable.iter_mut() {
         if activated.take_activated() {
-            if draggable.is_dragging {
-                draggable.is_dragging = false;
-                interactive.priority = 0;
-                interactive.radius = PICK_RADIUS;
-            } else {
-                draggable.is_dragging = true;
-                interactive.priority = 5;
-                interactive.radius = DROP_RADIUS;
-            }
+            draggable.is_dragging = !draggable.is_dragging;
+        }
+    }
+}
+
+pub fn update_draggable_system(
+    mut draggable: Query<(&Draggable, &mut Interactible), Changed<Draggable>>,
+) {
+    for (draggable, mut interactive) in draggable.iter_mut() {
+        if !draggable.is_dragging {
+            interactive.priority = 0;
+            interactive.radius = PICK_RADIUS;
+        } else {
+            interactive.priority = 5;
+            interactive.radius = DROP_RADIUS;
         }
     }
 }
@@ -75,13 +81,11 @@ pub fn run_draggable_system(
 
         let mut delta = target_position - draggable_transform.translation;
 
-        println!(
-            "leash length {}",
-            player_transform
-                .translation
-                .distance(draggable_transform.translation)
-        );
-        println!("delta length {}", delta.length());
+        if delta.length() > 2.5 {
+            // If too far away, snap the connection.
+            draggable.is_dragging = false;
+            continue;
+        }
 
         // The strength of the pulling/pushing force, at the max distance.
         let pull_strength = 15.;
