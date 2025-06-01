@@ -91,6 +91,8 @@ fn set_nearest_interactible_system(
 
     if nearest_interactible.entity != found_nearest {
         nearest_interactible.entity = found_nearest;
+        nearest_interactible.size = 0.5;
+        nearest_interactible.velocity = 0.0;
     }
 }
 
