@@ -65,7 +65,7 @@ fn setup(mut commands: Commands, common: Res<Common>) {
             )
             .with_scale(Vec3::splat(0.8)),
             RigidBody::Dynamic,
-            Collider::cuboid(0.8, 0.8, 0.8),
+            Collider::cuboid(1.0, 1.0, 1.0),
             Draggable::default(),
         ));
     }
