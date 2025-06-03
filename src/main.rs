@@ -1,5 +1,6 @@
 pub mod common;
 pub mod draggable;
+pub mod evil_robot;
 pub mod interactible;
 pub mod mainframe;
 pub mod player;
@@ -15,6 +16,7 @@ use bevy::{
 };
 use common::{Common, CommonPlugin, setup_common};
 use draggable::{Draggable, DraggablePlugin};
+use evil_robot::{EvilRobot, EvilRobotPlugin};
 use interactible::InteractiblePlugin;
 use mainframe::{Mainframe, MainframePlugin};
 use player::{Player, PlayerCamera, PlayerPlugin};
@@ -28,6 +30,7 @@ fn main() {
             InteractiblePlugin,
             MainframePlugin,
             DraggablePlugin,
+            EvilRobotPlugin,
         ))
         .add_plugins(CommonPlugin)
         .add_systems(Startup, (setup_common, setup).chain())
@@ -35,6 +38,7 @@ fn main() {
 }
 
 fn setup(mut commands: Commands, common: Res<Common>) {
+    // floor
     for x in -10..=10 {
         for z in -10..=10 {
             commands.spawn((
@@ -48,6 +52,7 @@ fn setup(mut commands: Commands, common: Res<Common>) {
     }
 
     for (x, z) in [(-3, -3), (5, 2), (8, 8)] {
+        // computers
         commands.spawn((
             Mesh3d(common.mesh_cube.clone()),
             MeshMaterial3d(common.material_gray.clone()),
@@ -57,6 +62,17 @@ fn setup(mut commands: Commands, common: Res<Common>) {
             Mainframe { active: false },
         ));
 
+        // robots.txt
+        commands.spawn((
+            Mesh3d(common.mesh_sphere.clone()),
+            MeshMaterial3d(common.material_beepboop.clone()),
+            Transform::from_translation(Vec3::new(x as f32 + 2.0, 1.6, z as f32)),
+            RigidBody::Dynamic,
+            Collider::cuboid(1., 1., 1.),
+            EvilRobot {},
+        ));
+
+        // power cells
         commands.spawn((
             Mesh3d(common.mesh_cube.clone()),
             MeshMaterial3d(common.material_red.clone()),
@@ -70,6 +86,7 @@ fn setup(mut commands: Commands, common: Res<Common>) {
         ));
     }
 
+    // overhead lighting
     commands.spawn((
         DirectionalLight {
             shadows_enabled: true,
@@ -79,6 +96,7 @@ fn setup(mut commands: Commands, common: Res<Common>) {
         Transform::from_xyz(8.0, 16.0, 8.0).looking_at(Vec3::ZERO, Vec3::Y),
     ));
 
+    // camera
     commands.spawn((
         Camera3d::default(),
         Camera {
@@ -105,6 +123,7 @@ fn setup(mut commands: Commands, common: Res<Common>) {
         PlayerCamera,
     ));
 
+    // player
     commands.spawn((
         Mesh3d(common.mesh_sphere.clone()),
         MeshMaterial3d(common.material_gray.clone()),

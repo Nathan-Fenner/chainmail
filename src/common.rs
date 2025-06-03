@@ -7,6 +7,7 @@ pub struct Common {
     pub material_gray: Handle<StandardMaterial>,
     pub material_yellow: Handle<StandardMaterial>,
     pub material_red: Handle<StandardMaterial>,
+    pub material_beepboop: Handle<StandardMaterial>,
     pub material_active: Handle<StandardMaterial>,
 }
 
@@ -41,6 +42,12 @@ pub fn setup_common(
         material_red: materials.add(StandardMaterial {
             base_color: Color::linear_rgb(0.9, 0.4, 0.1),
             perceptual_roughness: 1.0,
+            ..default()
+        }),
+        material_beepboop: materials.add(StandardMaterial {
+            base_color: Color::linear_rgb(0.9, 0.87, 0.94),
+            perceptual_roughness: 0.05,
+            metallic: 1.0,
             ..default()
         }),
         material_active: materials.add(StandardMaterial {
