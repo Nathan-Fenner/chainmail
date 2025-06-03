@@ -2,8 +2,10 @@ pub mod common;
 pub mod draggable;
 pub mod evil_robot;
 pub mod interactible;
+pub mod level;
 pub mod mainframe;
 pub mod player;
+
 use avian3d::prelude::*;
 
 use bevy::{
@@ -14,12 +16,14 @@ use bevy::{
     prelude::*,
     render::view::{ColorGrading, ColorGradingGlobal},
 };
-use common::{Common, CommonPlugin, setup_common};
-use draggable::{Draggable, DraggablePlugin};
-use evil_robot::{EvilRobot, EvilRobotPlugin};
+use common::{CommonPlugin, setup_common};
+use draggable::DraggablePlugin;
+use evil_robot::EvilRobotPlugin;
 use interactible::InteractiblePlugin;
-use mainframe::{Mainframe, MainframePlugin};
-use player::{Player, PlayerCamera, PlayerPlugin};
+use mainframe::MainframePlugin;
+use player::{PlayerCamera, PlayerPlugin};
+
+use crate::level::LevelPlugin;
 
 fn main() {
     App::new()
@@ -29,6 +33,7 @@ fn main() {
             PlayerPlugin,
             InteractiblePlugin,
             MainframePlugin,
+            LevelPlugin,
             DraggablePlugin,
             EvilRobotPlugin,
         ))
@@ -37,55 +42,7 @@ fn main() {
         .run();
 }
 
-fn setup(mut commands: Commands, common: Res<Common>) {
-    // floor
-    for x in -10..=10 {
-        for z in -10..=10 {
-            commands.spawn((
-                Mesh3d(common.mesh_cube.clone()),
-                MeshMaterial3d(common.material_gray.clone()),
-                Transform::from_translation(Vec3::new(x as f32, 0.0, z as f32)),
-                RigidBody::Static,
-                Collider::cuboid(1., 1., 1.),
-            ));
-        }
-    }
-
-    for (x, z) in [(-3, -3), (5, 2), (8, 8)] {
-        // computers
-        commands.spawn((
-            Mesh3d(common.mesh_cube.clone()),
-            MeshMaterial3d(common.material_gray.clone()),
-            Transform::from_translation(Vec3::new(x as f32, 1.2, z as f32)),
-            RigidBody::Static,
-            Collider::cuboid(1., 1., 1.),
-            Mainframe { active: false },
-        ));
-
-        // robots.txt
-        commands.spawn((
-            Mesh3d(common.mesh_sphere.clone()),
-            MeshMaterial3d(common.material_beepboop.clone()),
-            Transform::from_translation(Vec3::new(x as f32 + 2.0, 1.6, z as f32)),
-            RigidBody::Dynamic,
-            Collider::cuboid(1., 1., 1.),
-            EvilRobot {},
-        ));
-
-        // power cells
-        commands.spawn((
-            Mesh3d(common.mesh_cube.clone()),
-            MeshMaterial3d(common.material_red.clone()),
-            Transform::from_translation(
-                Vec3::new(x as f32, 1.2, z as f32) + Vec3::new(-3., 2., 0.),
-            )
-            .with_scale(Vec3::splat(0.8)),
-            RigidBody::Dynamic,
-            Collider::cuboid(1.0, 1.0, 1.0),
-            Draggable::default(),
-        ));
-    }
-
+fn setup(mut commands: Commands) {
     // overhead lighting
     commands.spawn((
         DirectionalLight {
@@ -121,15 +78,5 @@ fn setup(mut commands: Commands, common: Res<Common>) {
         },
         Transform::from_xyz(0.0, 17., 14.0).looking_at(Vec3::new(0., 1., 0.), Vec3::Y),
         PlayerCamera,
-    ));
-
-    // player
-    commands.spawn((
-        Mesh3d(common.mesh_sphere.clone()),
-        MeshMaterial3d(common.material_gray.clone()),
-        Transform::from_translation(Vec3::new(0.0, 7., 0.)),
-        RigidBody::Dynamic,
-        Collider::sphere(0.5),
-        Player {},
     ));
 }

@@ -5,10 +5,12 @@ pub struct Common {
     pub mesh_cube: Handle<Mesh>,
     pub mesh_sphere: Handle<Mesh>,
     pub material_gray: Handle<StandardMaterial>,
+    pub material_dark_gray: Handle<StandardMaterial>,
     pub material_yellow: Handle<StandardMaterial>,
     pub material_red: Handle<StandardMaterial>,
     pub material_beepboop: Handle<StandardMaterial>,
     pub material_active: Handle<StandardMaterial>,
+    pub material_invisible: Handle<StandardMaterial>,
 }
 
 #[derive(Default)]
@@ -34,6 +36,11 @@ pub fn setup_common(
             perceptual_roughness: 1.0,
             ..default()
         }),
+        material_dark_gray: materials.add(StandardMaterial {
+            base_color: Color::linear_rgb(0.2, 0.2, 0.3),
+            perceptual_roughness: 1.0,
+            ..default()
+        }),
         material_yellow: materials.add(StandardMaterial {
             base_color: Color::linear_rgb(0.9, 0.8, 0.2),
             perceptual_roughness: 1.0,
@@ -54,6 +61,11 @@ pub fn setup_common(
             base_color: Color::linear_rgb(0.4, 0.5, 1.0),
             emissive: LinearRgba::rgb(0.3, 0.6, 1.0) * 20.,
             perceptual_roughness: 1.0,
+            ..default()
+        }),
+        material_invisible: materials.add(StandardMaterial {
+            base_color: Color::linear_rgba(0., 0., 0., 0.),
+            alpha_mode: AlphaMode::Mask(0.5),
             ..default()
         }),
     });
