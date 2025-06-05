@@ -3,7 +3,7 @@ use bevy::{color::color_difference::EuclideanDistance, image::ImageLoaderSetting
 
 use crate::{
     common::Common, draggable::Draggable, evil_robot::EvilRobot, mainframe::Mainframe,
-    player::Player,
+    player::Player, spawn_point::SpawnPoint,
 };
 
 pub struct LevelPlugin;
@@ -159,8 +159,14 @@ fn load_level_system(
         // Yellow == Save/Spawn Point
         LevelSpawner {
             color: Color::linear_rgb(1., 1., 0.),
-            spawn: Box::new(|_commands, _info| {
-                // TODO: Spawn me
+            spawn: Box::new(|commands, info| {
+                commands.spawn((
+                    Mesh3d(common.mesh_cube.clone()),
+                    MeshMaterial3d(common.material_invisible.clone()),
+                    Transform::from_translation(info.pos + Vec3::new(0.0, 2.0, 0.0)),
+                    Collider::cuboid(1.0, 1.0, 1.0),
+                    SpawnPoint {},
+                ));
             }),
         },
     ];
