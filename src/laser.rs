@@ -24,10 +24,10 @@ fn draw_lasers_system(
     spatial: SpatialQuery,
     common: Res<Common>,
     mut commands: Commands,
-    mut lasers: Query<(&Transform, &mut Laser)>,
+    mut lasers: Query<(Entity, &Transform, &mut Laser)>,
     mut beam: Query<&mut Transform, (With<LaserBeam>, Without<Laser>)>,
 ) {
-    for (laser_transform, mut laser) in lasers.iter_mut() {
+    for (laser_entity, laser_transform, mut laser) in lasers.iter_mut() {
         let cast = spatial.cast_ray(
             laser_transform.translation + laser.direction * 0.05,
             Dir3::try_from(laser.direction).unwrap_or(Dir3::X),
@@ -77,6 +77,7 @@ fn draw_lasers_system(
                     .id();
 
                 laser.beam = Some(beam_id);
+                commands.entity(laser_entity).add_child(beam_id);
             }
         }
     }
