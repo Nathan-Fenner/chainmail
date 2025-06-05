@@ -4,19 +4,31 @@ use bevy::prelude::*;
 pub struct PlayerPlugin;
 impl Plugin for PlayerPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(FixedUpdate, control_player);
+        app.add_systems(FixedUpdate, (control_player,))
+            .add_systems(Update, control_camera_system);
     }
 }
 
 #[derive(Component)]
-#[require(ExternalForce, GravityScale)]
+#[require(ExternalForce, GravityScale, RecentVelocity = RecentVelocity{direction: Vec3::X})]
 pub struct Player {}
+
+#[derive(Component)]
+pub struct RecentVelocity {
+    // This will be a non-zero value, indicating the player's recent velocity.
+    pub direction: Vec3,
+}
 
 #[derive(Component)]
 pub struct PlayerCamera;
 
-fn control_player(
-    mut player: Query<(&mut Player, &mut ExternalForce, &LinearVelocity)>,
+pub fn control_player(
+    mut player: Query<(
+        &mut Player,
+        &mut ExternalForce,
+        &LinearVelocity,
+        &mut RecentVelocity,
+    )>,
     camera: Query<(&Transform, &PlayerCamera), Without<Player>>,
     keys: Res<ButtonInput<KeyCode>>,
 ) {
@@ -51,13 +63,35 @@ fn control_player(
     let damp_strength = 0.5;
     let accel_strength = 10.0;
 
-    for (_player, mut player_force, player_velocity) in player.iter_mut() {
+    for (_player, mut player_force, player_velocity, mut recent_velocity) in player.iter_mut() {
         let difference: Vec3 = desired_velocity - **player_velocity;
 
         player_force.set_force(
             -**player_velocity * damp_strength
                 + difference * Vec3::new(1., 0., 1.) * accel_strength,
         );
+
+        if player_velocity.length() > 0.1 {
+            recent_velocity.direction = recent_velocity.direction.lerp(**player_velocity, 0.2);
+            if recent_velocity.direction.length() < 0.1 {
+                recent_velocity.direction = recent_velocity.direction.normalize_or_zero() * 0.1;
+            }
+        }
     }
     // ...
+}
+
+fn control_camera_system(
+    player: Query<&Transform, With<Player>>,
+    mut camera: Query<&mut Transform, (With<PlayerCamera>, Without<Player>)>,
+) {
+    let Ok(player) = player.single() else {
+        return;
+    };
+
+    let Ok(mut camera) = camera.single_mut() else {
+        return;
+    };
+
+    camera.translation = player.translation * Vec3::new(1.0, 0.0, 1.0) + Vec3::new(0., 17., 14.);
 }
