@@ -7,7 +7,7 @@ use bevy::{
 };
 
 use crate::{
-    common::Common, draggable::Draggable, evil_robot::EvilRobot, mainframe::Mainframe,
+    common::Common, door::Door, draggable::Draggable, evil_robot::EvilRobot, mainframe::Mainframe,
     player::Player, spawn_point::SpawnPoint, well::Well, zipline::Zipline,
 };
 
@@ -154,9 +154,34 @@ fn load_level_system(
             }),
             skip_floor: true,
         },
+        // Purple == Door
+        LevelSpawner {
+            color: Color::linear_rgb(0.5, 0.0, 1.0),
+            spawn: Box::new(|commands, info| {
+                // visual "wall" blocks above door
+                commands.spawn((
+                    Mesh3d(common.mesh_cube.clone()),
+                    MeshMaterial3d(common.material_dark_gray.clone()),
+                    Transform::from_translation(info.pos + Vec3::Y),
+                    RigidBody::Static,
+                    Collider::cuboid(1.0, 1.0, 1.0),
+                    Door,
+                ));
+
+                // invisible blocker above that (like black wall)
+                commands.spawn((
+                    Mesh3d(common.mesh_cube.clone()),
+                    MeshMaterial3d(common.material_invisible.clone()),
+                    Transform::from_translation(info.pos + Vec3::Y * 2.0),
+                    RigidBody::Static,
+                    Collider::cuboid(1.0, 1.0, 1.0),
+                ));
+            }),
+            skip_floor: false,
+        },
         // Orange == Power Cell
         LevelSpawner {
-            color: Color::linear_rgb(1., 0.5, 0.),
+            color: Color::linear_rgb(1., 0.5, 0.0),
             spawn: Box::new(|commands, info| {
                 commands.spawn((
                     Mesh3d(common.mesh_cube.clone()),
