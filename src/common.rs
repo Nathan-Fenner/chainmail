@@ -10,6 +10,7 @@ pub struct Common {
     pub material_red: Handle<StandardMaterial>,
     pub material_beepboop: Handle<StandardMaterial>,
     pub material_active: Handle<StandardMaterial>,
+    pub material_laser: Handle<StandardMaterial>,
     pub material_invisible: Handle<StandardMaterial>,
 }
 
@@ -60,6 +61,12 @@ pub fn setup_common(
         material_active: materials.add(StandardMaterial {
             base_color: Color::linear_rgb(0.4, 0.5, 1.0),
             emissive: LinearRgba::rgb(0.3, 0.6, 1.0) * 20.,
+            perceptual_roughness: 1.0,
+            ..default()
+        }),
+        material_laser: materials.add(StandardMaterial {
+            base_color: Color::linear_rgb(1.0, 0.0, 0.3),
+            emissive: LinearRgba::rgb(1.0, 0.2, 0.3) * 20.,
             perceptual_roughness: 1.0,
             ..default()
         }),

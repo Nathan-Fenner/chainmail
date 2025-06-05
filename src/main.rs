@@ -2,6 +2,7 @@ pub mod common;
 pub mod draggable;
 pub mod evil_robot;
 pub mod interactible;
+pub mod laser;
 pub mod level;
 pub mod mainframe;
 pub mod player;
@@ -28,7 +29,7 @@ use player::{PlayerCamera, PlayerPlugin};
 use spawn_point::SpawnPointPlugin;
 use well::WellPlugin;
 
-use crate::{level::LevelPlugin, zipline::ZiplinePlugin};
+use crate::{laser::LaserPlugin, level::LevelPlugin, zipline::ZiplinePlugin};
 
 fn main() {
     App::new()
@@ -44,6 +45,7 @@ fn main() {
             ZiplinePlugin,
             SpawnPointPlugin,
             CommonPlugin,
+            LaserPlugin,
             WellPlugin,
         ))
         .add_systems(Startup, (setup_common, setup).chain())

@@ -7,8 +7,8 @@ use bevy::{
 };
 
 use crate::{
-    common::Common, draggable::Draggable, evil_robot::EvilRobot, mainframe::Mainframe,
-    player::Player, spawn_point::SpawnPoint, well::Well, zipline::Zipline,
+    common::Common, draggable::Draggable, evil_robot::EvilRobot, laser::Laser,
+    mainframe::Mainframe, player::Player, spawn_point::SpawnPoint, well::Well, zipline::Zipline,
 };
 
 pub struct LevelPlugin;
@@ -166,6 +166,46 @@ fn load_level_system(
                     Collider::cuboid(1.0, 1.0, 1.0),
                     Draggable::default(),
                 ));
+            }),
+            skip_floor: false,
+        },
+        // Pink == Laser Source
+        LevelSpawner {
+            color: Color::linear_rgb(1., 0.5, 0.5),
+            spawn: Box::new(|commands, info| {
+                // Wall
+                spawn_cube(
+                    commands,
+                    info.pos + Vec3::Y,
+                    common.material_dark_gray.clone(),
+                );
+                spawn_cube(
+                    commands,
+                    info.pos + Vec3::Y * 2.,
+                    common.material_invisible.clone(),
+                );
+
+                for d in [IVec2::X, IVec2::Y, IVec2::NEG_X, IVec2::NEG_Y] {
+                    let neighbor = info.grid + d;
+                    let neighbor_color = image
+                        .get_color_at(neighbor.x as u32, neighbor.y as u32)
+                        .unwrap();
+                    if neighbor_color.distance(&Color::linear_rgb(1., 1., 1.)) < 0.1 {
+                        // Spawn laser in this direction
+                        commands.spawn((
+                            Mesh3d(common.mesh_cube.clone()),
+                            MeshMaterial3d(common.material_red.clone()),
+                            Transform::from_translation(
+                                info.pos + Vec3::Y + Vec3::new(d.x as f32, 0.0, d.y as f32) * 0.5,
+                            )
+                            .with_scale(Vec3::splat(0.5)),
+                            Laser {
+                                direction: Vec3::new(d.x as f32, 0.0, d.y as f32),
+                                beam: None,
+                            },
+                        ));
+                    }
+                }
             }),
             skip_floor: false,
         },
