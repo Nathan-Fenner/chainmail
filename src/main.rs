@@ -5,8 +5,9 @@ pub mod interactible;
 pub mod level;
 pub mod mainframe;
 pub mod player;
-pub mod zipline;
 pub mod spawn_point;
+pub mod well;
+pub mod zipline;
 
 use avian3d::prelude::*;
 
@@ -25,6 +26,7 @@ use interactible::InteractiblePlugin;
 use mainframe::MainframePlugin;
 use player::{PlayerCamera, PlayerPlugin};
 use spawn_point::SpawnPointPlugin;
+use well::WellPlugin;
 
 use crate::{level::LevelPlugin, zipline::ZiplinePlugin};
 
@@ -42,6 +44,7 @@ fn main() {
             ZiplinePlugin,
             SpawnPointPlugin,
             CommonPlugin,
+            WellPlugin,
         ))
         .add_systems(Startup, (setup_common, setup).chain())
         .run();
