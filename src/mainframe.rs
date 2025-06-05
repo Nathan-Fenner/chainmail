@@ -58,3 +58,25 @@ pub fn recolor_computer(
         }
     }
 }
+
+use crate::door::{Door, DoorTrigger};
+
+pub fn unlock_doors_when_all_mainframes_active(
+    mut commands: Commands,
+    mainframes: Query<&Mainframe>,
+    doors: Query<(Entity, &Transform), With<Door>>,
+) {
+    if mainframes.iter().all(|mf| mf.active) {
+        for (door_entity, transform) in doors.iter() {
+            // Despawn the visible door
+            commands.entity(door_entity).despawn();
+
+            // Spawn a door trigger in its place
+            commands.spawn((
+                Transform::from_translation(transform.translation),
+                GlobalTransform::default(),
+                DoorTrigger,
+            ));
+        }
+    }
+}
