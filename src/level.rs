@@ -1,3 +1,5 @@
+use std::sync::Mutex;
+
 use avian3d::prelude::*;
 use bevy::{
     color::color_difference::EuclideanDistance, image::ImageLoaderSettings,
@@ -80,7 +82,7 @@ fn load_level_system(
         spawn_cube(commands, p, common.material_gray.clone());
     };
 
-    let mut zipline_positions: Vec<IVec2> = Vec::new();
+    let zipline_positions: Mutex<Vec<IVec2>> = Mutex::new(Vec::new());
 
     let mut color_spawners: Vec<LevelSpawner> = vec![
         // White == Floor
@@ -200,9 +202,17 @@ fn load_level_system(
         LevelSpawner {
             color: Color::linear_rgb(1., 0., 1.),
             spawn: Box::new(|_commands, info| {
-                zipline_positions.push(info.grid);
+                zipline_positions.lock().unwrap().push(info.grid);
             }),
             skip_floor: false,
+        },
+        // Dark Magenta == Zipline without floor
+        LevelSpawner {
+            color: Color::linear_rgb(0.5, 0., 0.5),
+            spawn: Box::new(|_commands, info| {
+                zipline_positions.lock().unwrap().push(info.grid);
+            }),
+            skip_floor: true,
         },
     ];
 
@@ -238,10 +248,13 @@ fn load_level_system(
 
     std::mem::drop(color_spawners);
 
-    println!("zipline_positions = {:?}", zipline_positions);
-
     // Spawn ziplines
-    spawn_ziplines(shift, &mut commands, &common, &zipline_positions);
+    spawn_ziplines(
+        shift,
+        &mut commands,
+        &common,
+        &zipline_positions.lock().unwrap(),
+    );
 }
 
 fn spawn_ziplines(
@@ -280,8 +293,6 @@ fn spawn_ziplines(
             // Only visit from the ends of a line, so that the region is built in-order.
             continue;
         }
-
-        println!("start at {:?}", p);
 
         visited.insert(p);
         let mut region = vec![p];

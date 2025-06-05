@@ -93,5 +93,7 @@ fn control_camera_system(
         return;
     };
 
-    camera.translation = player.translation * Vec3::new(1.0, 0.0, 1.0) + Vec3::new(0., 17., 14.);
+    let player_ground = player.translation * Vec3::new(1.0, 0.0, 1.0) + Vec3::Y;
+    camera.translation = player_ground + Vec3::new(0., 22., 14.);
+    camera.look_at(player_ground, Vec3::Y);
 }
