@@ -1,4 +1,5 @@
 pub mod common;
+pub mod door;
 pub mod draggable;
 pub mod evil_robot;
 pub mod interactible;
@@ -20,10 +21,11 @@ use bevy::{
     render::view::{ColorGrading, ColorGradingGlobal},
 };
 use common::{CommonPlugin, setup_common};
+use door::DoorPlugin;
 use draggable::DraggablePlugin;
 use evil_robot::EvilRobotPlugin;
 use interactible::InteractiblePlugin;
-use mainframe::MainframePlugin;
+use mainframe::{MainframePlugin, unlock_doors_when_all_mainframes_active};
 use player::{PlayerCamera, PlayerPlugin};
 use spawn_point::SpawnPointPlugin;
 use well::WellPlugin;
@@ -45,8 +47,10 @@ fn main() {
             SpawnPointPlugin,
             CommonPlugin,
             WellPlugin,
+            DoorPlugin,
         ))
         .add_systems(Startup, (setup_common, setup).chain())
+        .add_systems(Update, unlock_doors_when_all_mainframes_active)
         .run();
 }
 
