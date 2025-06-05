@@ -6,7 +6,7 @@ use bevy::{
 
 use crate::{
     common::Common, draggable::Draggable, evil_robot::EvilRobot, mainframe::Mainframe,
-    player::Player, spawn_point::SpawnPoint, zipline::Zipline,
+    player::Player, spawn_point::SpawnPoint, well::Well, zipline::Zipline,
 };
 
 pub struct LevelPlugin;
@@ -63,6 +63,7 @@ fn load_level_system(
     struct LevelSpawner<'a> {
         color: Color,
         spawn: Box<dyn FnMut(&mut Commands, &SpawnInfo) + 'a>,
+        skip_floor: bool,
     }
 
     let spawn_cube = |commands: &mut Commands, p: Vec3, material: Handle<StandardMaterial>| {
@@ -88,6 +89,7 @@ fn load_level_system(
             spawn: Box::new(|_commands, _info| {
                 // Nothing additional.
             }),
+            skip_floor: false,
         },
         // Black == Wall
         LevelSpawner {
@@ -104,6 +106,7 @@ fn load_level_system(
                     common.material_invisible.clone(),
                 );
             }),
+            skip_floor: false,
         },
         // Green == Compute
         LevelSpawner {
@@ -118,6 +121,7 @@ fn load_level_system(
                     Mainframe { active: false },
                 ));
             }),
+            skip_floor: false,
         },
         // Blue == Robot
         LevelSpawner {
@@ -132,6 +136,21 @@ fn load_level_system(
                     EvilRobot {},
                 ));
             }),
+            skip_floor: false,
+        },
+        // Dark Grey == Well
+        LevelSpawner {
+            color: Color::linear_rgb(0.25, 0.25, 0.25),
+            spawn: Box::new(|commands, info| {
+                commands.spawn((
+                    Mesh3d(common.mesh_sphere.clone()),
+                    MeshMaterial3d(common.material_dark_gray.clone()),
+                    Transform::from_translation(info.pos),
+                    GlobalTransform::default(),
+                    Well,
+                ));
+            }),
+            skip_floor: true,
         },
         // Orange == Power Cell
         LevelSpawner {
@@ -146,6 +165,7 @@ fn load_level_system(
                     Draggable::default(),
                 ));
             }),
+            skip_floor: false,
         },
         // Red == Player
         LevelSpawner {
@@ -160,6 +180,7 @@ fn load_level_system(
                     Player {},
                 ));
             }),
+            skip_floor: false,
         },
         // Yellow == Save/Spawn Point
         LevelSpawner {
@@ -173,6 +194,7 @@ fn load_level_system(
                     SpawnPoint {},
                 ));
             }),
+            skip_floor: false,
         },
         // Magenta == Zipline
         LevelSpawner {
@@ -180,6 +202,7 @@ fn load_level_system(
             spawn: Box::new(|_commands, info| {
                 zipline_positions.push(info.grid);
             }),
+            skip_floor: false,
         },
     ];
 
@@ -205,7 +228,9 @@ fn load_level_system(
                 grid: IVec2::new(x as i32, z as i32),
             };
 
-            spawn_floor(&mut commands, info.pos);
+            if !candidate.skip_floor {
+                spawn_floor(&mut commands, info.pos);
+            }
 
             (candidate.spawn)(&mut commands, &info);
         }
