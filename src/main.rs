@@ -5,9 +5,9 @@ pub mod interactible;
 pub mod level;
 pub mod mainframe;
 pub mod player;
-pub mod zipline;
 pub mod spawn_point;
 pub mod well;
+pub mod zipline;
 
 use avian3d::prelude::*;
 
