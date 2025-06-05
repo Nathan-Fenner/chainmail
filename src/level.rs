@@ -1,9 +1,12 @@
 use avian3d::prelude::*;
-use bevy::{color::color_difference::EuclideanDistance, image::ImageLoaderSettings, prelude::*};
+use bevy::{
+    color::color_difference::EuclideanDistance, image::ImageLoaderSettings,
+    platform::collections::HashSet, prelude::*,
+};
 
 use crate::{
     common::Common, draggable::Draggable, evil_robot::EvilRobot, mainframe::Mainframe,
-    player::Player, spawn_point::SpawnPoint,
+    player::Player, spawn_point::SpawnPoint, zipline::Zipline,
 };
 
 pub struct LevelPlugin;
@@ -59,7 +62,7 @@ fn load_level_system(
 
     struct LevelSpawner<'a> {
         color: Color,
-        spawn: Box<dyn Fn(&mut Commands, &SpawnInfo) + 'a>,
+        spawn: Box<dyn FnMut(&mut Commands, &SpawnInfo) + 'a>,
     }
 
     let spawn_cube = |commands: &mut Commands, p: Vec3, material: Handle<StandardMaterial>| {
@@ -76,7 +79,9 @@ fn load_level_system(
         spawn_cube(commands, p, common.material_gray.clone());
     };
 
-    let color_spawners: Vec<LevelSpawner> = vec![
+    let mut zipline_positions: Vec<IVec2> = Vec::new();
+
+    let mut color_spawners: Vec<LevelSpawner> = vec![
         // White == Floor
         LevelSpawner {
             color: Color::linear_rgb(1., 1., 1.),
@@ -169,6 +174,13 @@ fn load_level_system(
                 ));
             }),
         },
+        // Magenta == Zipline
+        LevelSpawner {
+            color: Color::linear_rgb(1., 0., 1.),
+            spawn: Box::new(|_commands, info| {
+                zipline_positions.push(info.grid);
+            }),
+        },
     ];
 
     for x in 0..image.width() {
@@ -178,7 +190,7 @@ fn load_level_system(
             let color_distance_scale = 10_000;
 
             let (color_distance, candidate) = color_spawners
-                .iter()
+                .iter_mut()
                 .map(|candidate| (candidate.color.distance(&color), candidate))
                 .min_by_key(|a| (a.0 * color_distance_scale as f32) as i64)
                 .unwrap();
@@ -198,4 +210,106 @@ fn load_level_system(
             (candidate.spawn)(&mut commands, &info);
         }
     }
+
+    std::mem::drop(color_spawners);
+
+    println!("zipline_positions = {:?}", zipline_positions);
+
+    // Spawn ziplines
+    spawn_ziplines(shift, &mut commands, &common, &zipline_positions);
+}
+
+fn spawn_ziplines(
+    shift: Vec3,
+    commands: &mut Commands,
+    common: &Common,
+    zipline_positions: &[IVec2],
+) {
+    let zipline_positions: HashSet<IVec2> = zipline_positions.iter().copied().collect();
+
+    fn neighbors8(p: IVec2) -> Vec<IVec2> {
+        let mut out: Vec<IVec2> = Vec::with_capacity(8);
+        for dx in -1..=1 {
+            for dy in -1..=1 {
+                if (dx, dy) != (0, 0) {
+                    out.push(p + IVec2::new(dx, dy));
+                }
+            }
+        }
+        out
+    }
+
+    // Group the ziplines into contiguous loops or lines.
+    let mut visited: HashSet<IVec2> = HashSet::new();
+    for &p in zipline_positions.iter() {
+        if visited.contains(&p) {
+            continue;
+        }
+
+        if neighbors8(p)
+            .into_iter()
+            .filter(|neighbor| zipline_positions.contains(neighbor))
+            .count()
+            != 1
+        {
+            // Only visit from the ends of a line, so that the region is built in-order.
+            continue;
+        }
+
+        println!("start at {:?}", p);
+
+        visited.insert(p);
+        let mut region = vec![p];
+        let mut i = 0;
+        while i < region.len() {
+            let q = region[i];
+            for neighbor in neighbors8(q) {
+                if !visited.contains(&neighbor) && zipline_positions.contains(&neighbor) {
+                    visited.insert(neighbor);
+                    region.push(neighbor);
+                }
+            }
+            i += 1;
+        }
+
+        spawn_zipline(shift, commands, common, &region);
+    }
+}
+
+/// Spawn a single zipline, in order.
+fn spawn_zipline(
+    shift: Vec3,
+    commands: &mut Commands,
+    common: &Common,
+    zipline_positions: &[IVec2],
+) {
+    let mut nodes: Vec<Vec3> = Vec::new();
+    for i in 0..zipline_positions.len() - 1 {
+        let a = zipline_positions[i];
+        let b = zipline_positions[i + 1];
+
+        let height = 0.5;
+
+        let end_a = a.as_vec2().extend(height).xzy() + shift;
+        let end_b = b.as_vec2().extend(height).xzy() + shift;
+
+        nodes.push((end_a + end_b) / 2.);
+
+        commands.spawn((
+            MeshMaterial3d(common.material_yellow.clone()),
+            Mesh3d(common.mesh_cube.clone()),
+            Transform::from_translation((end_a + end_b) / 2.)
+                .with_scale(Vec3::new(0.4, 0.4, end_a.distance(end_b) + 0.4))
+                .looking_at(end_a, Vec3::Y),
+        ));
+    }
+
+    commands.spawn((
+        Transform::from_translation(nodes[0]),
+        Zipline {
+            nodes,
+            active: None,
+            closest_index: 0,
+        },
+    ));
 }

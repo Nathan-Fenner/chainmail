@@ -44,7 +44,6 @@ pub fn recolor_computer(
     common: Res<Common>,
 ) {
     for (entity, mainframe, mut light) in mainframe.iter_mut() {
-        println!("visit compute {:?}", entity);
         if mainframe.active {
             commands
                 .entity(entity)
