@@ -6,6 +6,7 @@ pub mod level;
 pub mod mainframe;
 pub mod player;
 pub mod zipline;
+pub mod spawn_point;
 
 use avian3d::prelude::*;
 
@@ -23,6 +24,7 @@ use evil_robot::EvilRobotPlugin;
 use interactible::InteractiblePlugin;
 use mainframe::MainframePlugin;
 use player::{PlayerCamera, PlayerPlugin};
+use spawn_point::SpawnPointPlugin;
 
 use crate::{level::LevelPlugin, zipline::ZiplinePlugin};
 
@@ -38,8 +40,9 @@ fn main() {
             DraggablePlugin,
             EvilRobotPlugin,
             ZiplinePlugin,
+            SpawnPointPlugin,
+            CommonPlugin,
         ))
-        .add_plugins(CommonPlugin)
         .add_systems(Startup, (setup_common, setup).chain())
         .run();
 }
