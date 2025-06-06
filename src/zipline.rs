@@ -155,6 +155,6 @@ pub fn zip_on_zipline_system(
         let direction = zipline.nodes[target_index] + Vec3::Y - player_transform.translation;
 
         let direction = direction.normalize_or_zero();
-        player_force.set_force(direction * 250. - **player_velocity * 10.);
+        player_force.set_force(direction * 200. - **player_velocity * 10.);
     }
 }
