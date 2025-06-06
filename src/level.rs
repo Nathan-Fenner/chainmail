@@ -217,19 +217,19 @@ fn load_level_system(
 }
 
 #[derive(Debug)]
-struct HallwayPattern {
+struct HallwayJunction {
     pattern: u32,
     center: Vec2,
     grids: Vec<IVec2>,
 }
 
-fn hallway_patterns(image: &Image) -> Vec<HallwayPattern> {
+fn hallway_patterns(image: &Image) -> Vec<HallwayJunction> {
     fn is_hallway_color(c: &Color) -> bool {
         c.distance(&Color::linear_rgb(0.5, 0.5, 0.5)) < 0.1
             || c.distance(&Color::linear_rgb(0.75, 0.75, 0.75)) < 0.1
     }
     let mut visited: HashSet<IVec2> = HashSet::new();
-    let mut patterns: Vec<HallwayPattern> = Vec::new();
+    let mut patterns: Vec<HallwayJunction> = Vec::new();
 
     for x in 0..image.width() as i32 {
         for y in 0..image.height() as i32 {
@@ -286,7 +286,7 @@ fn hallway_patterns(image: &Image) -> Vec<HallwayPattern> {
                 })
                 .fold(0, |a, b| a * 2 + b);
 
-            patterns.push(HallwayPattern {
+            patterns.push(HallwayJunction {
                 pattern: region_pattern,
                 center: region.iter().map(|p| p.as_vec2()).sum::<Vec2>() / region.len() as f32,
                 grids: region.iter().copied().collect(),
