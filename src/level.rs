@@ -76,7 +76,7 @@ struct SpawnInfo {
 
 #[derive(Component)]
 struct Hallway {
-    pattern: u32,
+    pattern: HallwayPattern,
     room1: LevelName,
     room2: LevelName,
 }
@@ -216,9 +216,12 @@ fn load_level_system(
     }
 }
 
+#[derive(Copy, Clone, Eq, PartialEq, Debug, Hash)]
+struct HallwayPattern(u32);
+
 #[derive(Debug)]
 struct HallwayJunction {
-    pattern: u32,
+    pattern: HallwayPattern,
     center: Vec2,
     grids: Vec<IVec2>,
 }
@@ -269,22 +272,24 @@ fn hallway_patterns(image: &Image) -> Vec<HallwayJunction> {
 
             let mut region_pattern = region.iter().copied().collect::<Vec<IVec2>>();
             region_pattern.sort_by_key(|p| (p.x, p.y));
-            let region_pattern: u32 = region_pattern
-                .iter()
-                .map(|p| {
-                    if image
-                        .get_color_at(p.x as u32, p.y as u32)
-                        .unwrap()
-                        .to_linear()
-                        .red
-                        < 0.62
-                    {
-                        1
-                    } else {
-                        0
-                    }
-                })
-                .fold(0, |a, b| a * 2 + b);
+            let region_pattern: HallwayPattern = HallwayPattern(
+                region_pattern
+                    .iter()
+                    .map(|p| {
+                        if image
+                            .get_color_at(p.x as u32, p.y as u32)
+                            .unwrap()
+                            .to_linear()
+                            .red
+                            < 0.62
+                        {
+                            1
+                        } else {
+                            0
+                        }
+                    })
+                    .fold(0, |a, b| a * 2 + b),
+            );
 
             patterns.push(HallwayJunction {
                 pattern: region_pattern,
