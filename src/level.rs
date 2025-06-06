@@ -592,8 +592,17 @@ fn load_level(
         // Dark Magenta == Zipline without floor
         LevelSpawner {
             color: Color::linear_rgb(0.5, 0., 0.5),
-            spawn: Box::new(|_commands, info| {
+            spawn: Box::new(|commands, info| {
                 zipline_positions.lock().unwrap().push(info.grid);
+
+                commands.spawn((
+                    level_tag.clone(),
+                    Mesh3d(common.mesh_sphere.clone()),
+                    MeshMaterial3d(common.material_dark_gray.clone()),
+                    Transform::from_translation(info.pos),
+                    GlobalTransform::default(),
+                    Well,
+                ));
             }),
             skip_floor: true,
         },

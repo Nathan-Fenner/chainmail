@@ -17,7 +17,7 @@ struct Fog {
     speed: f32,
 }
 
-const GRID_SPACING: f32 = 2.3;
+const GRID_SPACING: f32 = 1.8;
 const FOG_GRID_SIZE: i32 = 50;
 
 fn spawn_fog_system(mut commands: Commands, common: Res<Common>) {
