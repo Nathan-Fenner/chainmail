@@ -48,7 +48,7 @@ impl Plugin for LevelPlugin {
 }
 
 fn setup_levels_system(mut commands: Commands, asset_server: Res<AssetServer>) {
-    let map_names = ["map1.png", "map2.png"];
+    let map_names = ["map1.png", "rails_map.png"];
 
     commands.insert_resource(Levels {
         levels: map_names
