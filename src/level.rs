@@ -240,6 +240,7 @@ struct HallwayJunction {
 fn get_hallway_junctions(image: &Image) -> Vec<HallwayJunction> {
     fn is_hallway_color(c: &Color) -> bool {
         c.distance(&Color::linear_rgb(0.5, 0.5, 0.5)) < 0.1
+            || c.distance(&Color::linear_rgb(0.625, 0.625, 0.625)) < 0.1
             || c.distance(&Color::linear_rgb(0.75, 0.75, 0.75)) < 0.1
     }
     let mut visited: HashSet<IVec2> = HashSet::new();
@@ -287,19 +288,20 @@ fn get_hallway_junctions(image: &Image) -> Vec<HallwayJunction> {
                 region_pattern
                     .iter()
                     .map(|p| {
-                        if image
+                        let color = image
                             .get_color_at(p.x as u32, p.y as u32)
                             .unwrap()
                             .to_linear()
-                            .red
-                            < 0.62
-                        {
+                            .red;
+                        if color < 0.56 {
                             1
+                        } else if color < 0.688 {
+                            2
                         } else {
-                            0
+                            3
                         }
                     })
-                    .fold(0, |a, b| a * 2 + b),
+                    .fold(0, |a, b| a * 4 + b),
             );
 
             patterns.push(HallwayJunction {
@@ -356,6 +358,14 @@ fn load_level(
         // Light Grey == Connecting Hallway Floor
         LevelSpawner {
             color: Color::linear_rgb(0.75, 0.75, 0.75),
+            spawn: Box::new(|_commands, _info| {
+                // Spawned later
+            }),
+            skip_floor: false,
+        },
+        // Light Medium Grey == Connecting Hallway Floor
+        LevelSpawner {
+            color: Color::linear_rgb(0.625, 0.625, 0.625),
             spawn: Box::new(|_commands, _info| {
                 // Spawned later
             }),
