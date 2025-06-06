@@ -652,6 +652,7 @@ fn load_level(
                     pattern: hallway_pattern.pattern,
                     rooms: junction_to_levels[&hallway_pattern.pattern].clone(),
                 },
+                SpawnPoint {}, // Hallways are also spawn points
             ));
         }
     }

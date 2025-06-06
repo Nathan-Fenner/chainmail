@@ -12,6 +12,7 @@ pub struct Common {
     pub material_active: Handle<StandardMaterial>,
     pub material_laser: Handle<StandardMaterial>,
     pub material_invisible: Handle<StandardMaterial>,
+    pub material_fog: Handle<StandardMaterial>,
 }
 
 #[derive(Default)]
@@ -73,6 +74,14 @@ pub fn setup_common(
         material_invisible: materials.add(StandardMaterial {
             base_color: Color::linear_rgba(0., 0., 0., 0.),
             alpha_mode: AlphaMode::Mask(0.5),
+            ..default()
+        }),
+        material_fog: materials.add(StandardMaterial {
+            base_color: Color::linear_rgb(0.01, 0.01, 0.01),
+            specular_tint: Color::linear_rgb(0., 0., 0.),
+            reflectance: 0.0,
+            perceptual_roughness: 1.0,
+
             ..default()
         }),
     });

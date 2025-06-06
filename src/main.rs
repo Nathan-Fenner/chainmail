@@ -2,6 +2,7 @@ pub mod common;
 pub mod door;
 pub mod draggable;
 pub mod evil_robot;
+pub mod fog;
 pub mod interactible;
 pub mod laser;
 pub mod level;
@@ -31,7 +32,7 @@ use player::{PlayerCamera, PlayerPlugin};
 use spawn_point::SpawnPointPlugin;
 use well::WellPlugin;
 
-use crate::{laser::LaserPlugin, level::LevelPlugin, zipline::ZiplinePlugin};
+use crate::{fog::FogPlugin, laser::LaserPlugin, level::LevelPlugin, zipline::ZiplinePlugin};
 
 fn main() {
     App::new()
@@ -50,8 +51,9 @@ fn main() {
             LaserPlugin,
             WellPlugin,
             DoorPlugin,
+            FogPlugin,
         ))
-        .add_systems(Startup, (setup_common, setup).chain())
+        .add_systems(Startup, setup.after(setup_common))
         .add_systems(Update, unlock_doors_when_all_mainframes_active)
         .run();
 }
