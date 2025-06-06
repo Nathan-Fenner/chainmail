@@ -339,6 +339,40 @@ fn load_level(
         color: Color,
         spawn: Box<dyn FnMut(&mut Commands, &SpawnInfo) + 'a>,
         skip_floor: bool,
+        lift_entity: bool,
+        lift_floor: bool,
+    }
+    impl<'a> LevelSpawner<'a> {
+        fn new(color: Color, spawn: impl FnMut(&mut Commands, &SpawnInfo) + 'a) -> Self {
+            Self {
+                color,
+                spawn: Box::new(spawn),
+                skip_floor: false,
+                lift_entity: false,
+                lift_floor: false,
+            }
+        }
+
+        fn skip_floor(self) -> Self {
+            Self {
+                skip_floor: true,
+                ..self
+            }
+        }
+        fn lift_floor(self) -> Self {
+            Self {
+                lift_entity: true,
+                lift_floor: true,
+                ..self
+            }
+        }
+        fn lift_entity(self) -> Self {
+            Self {
+                lift_entity: true,
+                lift_floor: false,
+                ..self
+            }
+        }
     }
 
     let spawn_cube = |commands: &mut Commands, p: Vec3, material: Handle<StandardMaterial>| {
@@ -356,256 +390,241 @@ fn load_level(
         spawn_cube(commands, p, common.material_gray.clone());
     };
 
-    let zipline_positions: Mutex<Vec<IVec2>> = Mutex::new(Vec::new());
+    let zipline_positions: Mutex<HashMap<IVec2, Vec3>> = Mutex::new(HashMap::default());
+
+    let is_raised = |p: IVec2| -> bool {
+        let c = image.get_color_at(p.x as u32, p.y as u32).unwrap();
+
+        c.distance(&Color::linear_rgb(186. / 255., 221. / 255., 1.)) < 0.1
+            || c.distance(&Color::linear_rgb(0.5, 0.75, 1.0)) < 0.1
+    };
 
     let mut color_spawners: Vec<LevelSpawner> = vec![
         // White == Floor
-        LevelSpawner {
-            color: Color::linear_rgb(1., 1., 1.),
-            spawn: Box::new(|_commands, _info| {
-                // Nothing additional.
-            }),
-            skip_floor: false,
-        },
+        LevelSpawner::new(Color::linear_rgb(1., 1., 1.), |_commands, _info| {
+            // Nothing additional.
+        }),
+        // Light Blue == Elevated Floor
+        LevelSpawner::new(Color::linear_rgb(0.5, 0.75, 1.0), |commands, info| {
+            spawn_cube(commands, info.pos + Vec3::Y, common.material_gray.clone());
+        }),
+        // Lighter Blue == Ramp
+        LevelSpawner::new(
+            Color::linear_rgb(186. / 255., 221. / 255., 1.),
+            |commands, info| {
+                let facing = Vec3::X;
+
+                commands.spawn((
+                    level_tag.clone(),
+                    Mesh3d(common.mesh_cube.clone()),
+                    MeshMaterial3d(common.material_gray.clone()),
+                    Transform::from_translation(info.pos - facing * 0.5 + Vec3::Y * 0.5)
+                        .looking_to(facing + Vec3::Y, Vec3::Y)
+                        .with_scale(Vec3::new(1.0, 2.0f32.sqrt(), 2.0f32.sqrt())),
+                    RigidBody::Static,
+                    Collider::cuboid(1., 1., 1.),
+                ));
+            },
+        ),
         // Light Grey == Connecting Hallway Floor
-        LevelSpawner {
-            color: Color::linear_rgb(0.75, 0.75, 0.75),
-            spawn: Box::new(|_commands, _info| {
-                // Spawned later
-            }),
-            skip_floor: false,
-        },
+        LevelSpawner::new(Color::linear_rgb(0.75, 0.75, 0.75), |_commands, _info| {
+            // Spawned later
+        }),
         // Light Medium Grey == Connecting Hallway Floor
-        LevelSpawner {
-            color: Color::linear_rgb(0.625, 0.625, 0.625),
-            spawn: Box::new(|_commands, _info| {
+        LevelSpawner::new(
+            Color::linear_rgb(0.625, 0.625, 0.625),
+            |_commands, _info| {
                 // Spawned later
-            }),
-            skip_floor: false,
-        },
+            },
+        ),
         // Medium Grey == Connecting Hallway Floor
-        LevelSpawner {
-            color: Color::linear_rgb(0.5, 0.5, 0.5),
-            spawn: Box::new(|_commands, _info| {
-                // Spawned later
-            }),
-            skip_floor: false,
-        },
+        LevelSpawner::new(Color::linear_rgb(0.5, 0.5, 0.5), |_commands, _info| {
+            // Spawned later
+        }),
         // Black == Wall
-        LevelSpawner {
-            color: Color::linear_rgb(0., 0., 0.),
-            spawn: Box::new(|commands, info| {
-                spawn_cube(
-                    commands,
-                    info.pos + Vec3::Y,
-                    common.material_dark_gray.clone(),
-                );
-                spawn_cube(
-                    commands,
-                    info.pos + Vec3::Y * 2.,
-                    common.material_invisible.clone(),
-                );
-            }),
-            skip_floor: false,
-        },
+        LevelSpawner::new(Color::linear_rgb(0., 0., 0.), |commands, info| {
+            spawn_cube(
+                commands,
+                info.pos + Vec3::Y,
+                common.material_dark_gray.clone(),
+            );
+            spawn_cube(
+                commands,
+                info.pos + Vec3::Y * 2.,
+                common.material_invisible.clone(),
+            );
+        }),
         // Green == Compute
-        LevelSpawner {
-            color: Color::linear_rgb(0., 1., 0.),
-            spawn: Box::new(|commands, info| {
-                commands.spawn((
-                    level_tag.clone(),
-                    Mesh3d(common.mesh_cube.clone()),
-                    MeshMaterial3d(common.material_gray.clone()),
-                    Transform::from_translation(info.pos + Vec3::Y),
-                    RigidBody::Static,
-                    Collider::cuboid(1., 1., 1.),
-                    Mainframe { active: false },
-                ));
-            }),
-            skip_floor: false,
-        },
+        LevelSpawner::new(Color::linear_rgb(0., 1., 0.), |commands, info| {
+            commands.spawn((
+                level_tag.clone(),
+                Mesh3d(common.mesh_cube.clone()),
+                MeshMaterial3d(common.material_gray.clone()),
+                Transform::from_translation(info.pos + Vec3::Y),
+                RigidBody::Static,
+                Collider::cuboid(1., 1., 1.),
+                Mainframe { active: false },
+            ));
+        })
+        .lift_floor(),
         // Light Blue == Outside
-        LevelSpawner {
-            color: Color::linear_rgb(0.5, 0.5, 0.835),
-            spawn: Box::new(|_commands, _info| {
-                // Nothing at all
-            }),
-            skip_floor: true,
-        },
+        LevelSpawner::new(Color::linear_rgb(0.5, 0.5, 0.835), |_commands, _info| {
+            // Nothing at all
+        })
+        .skip_floor(),
         // Blue == Robot
-        LevelSpawner {
-            color: Color::linear_rgb(0., 0., 1.),
-            spawn: Box::new(|commands, info| {
-                commands.spawn((
-                    level_tag.clone(),
-                    Mesh3d(common.mesh_sphere.clone()),
-                    MeshMaterial3d(common.material_beepboop.clone()),
-                    Transform::from_translation(info.pos + Vec3::Y),
-                    RigidBody::Dynamic,
-                    Collider::cuboid(1., 1., 1.),
-                    EvilRobot {},
-                ));
-            }),
-            skip_floor: false,
-        },
+        LevelSpawner::new(Color::linear_rgb(0., 0., 1.), |commands, info| {
+            commands.spawn((
+                level_tag.clone(),
+                Mesh3d(common.mesh_sphere.clone()),
+                MeshMaterial3d(common.material_beepboop.clone()),
+                Transform::from_translation(info.pos + Vec3::Y),
+                RigidBody::Dynamic,
+                Collider::cuboid(1., 1., 1.),
+                EvilRobot {},
+            ));
+        }),
         // Dark Grey == Well
-        LevelSpawner {
-            color: Color::linear_rgb(0.25, 0.25, 0.25),
-            spawn: Box::new(|commands, info| {
-                commands.spawn((
-                    level_tag.clone(),
-                    Mesh3d(common.mesh_sphere.clone()),
-                    MeshMaterial3d(common.material_dark_gray.clone()),
-                    Transform::from_translation(info.pos),
-                    GlobalTransform::default(),
-                    Well,
-                ));
-            }),
-            skip_floor: true,
-        },
+        LevelSpawner::new(Color::linear_rgb(0.25, 0.25, 0.25), |commands, info| {
+            commands.spawn((
+                level_tag.clone(),
+                Mesh3d(common.mesh_sphere.clone()),
+                MeshMaterial3d(common.material_dark_gray.clone()),
+                Transform::from_translation(info.pos),
+                GlobalTransform::default(),
+                Well,
+            ));
+        })
+        .skip_floor(),
         // Purple == Door
-        LevelSpawner {
-            color: Color::linear_rgb(0.5, 0.0, 1.0),
-            spawn: Box::new(|commands, info| {
-                // visual "wall" blocks above door
-                commands.spawn((
-                    level_tag.clone(),
-                    Mesh3d(common.mesh_cube.clone()),
-                    MeshMaterial3d(common.material_dark_gray.clone()),
-                    Transform::from_translation(info.pos + Vec3::Y),
-                    RigidBody::Static,
-                    Collider::cuboid(1.0, 1.0, 1.0),
-                    Door,
-                ));
+        LevelSpawner::new(Color::linear_rgb(0.5, 0.0, 1.0), |commands, info| {
+            // visual "wall" blocks above door
+            commands.spawn((
+                level_tag.clone(),
+                Mesh3d(common.mesh_cube.clone()),
+                MeshMaterial3d(common.material_dark_gray.clone()),
+                Transform::from_translation(info.pos + Vec3::Y),
+                RigidBody::Static,
+                Collider::cuboid(1.0, 1.0, 1.0),
+                Door,
+            ));
 
-                // invisible blocker above that (like black wall)
-                commands.spawn((
-                    level_tag.clone(),
-                    Mesh3d(common.mesh_cube.clone()),
-                    MeshMaterial3d(common.material_invisible.clone()),
-                    Transform::from_translation(info.pos + Vec3::Y * 2.0),
-                    RigidBody::Static,
-                    Collider::cuboid(1.0, 1.0, 1.0),
-                ));
-            }),
-            skip_floor: false,
-        },
+            // invisible blocker above that (like black wall)
+            commands.spawn((
+                level_tag.clone(),
+                Mesh3d(common.mesh_cube.clone()),
+                MeshMaterial3d(common.material_invisible.clone()),
+                Transform::from_translation(info.pos + Vec3::Y * 2.0),
+                RigidBody::Static,
+                Collider::cuboid(1.0, 1.0, 1.0),
+            ));
+        })
+        .lift_floor(),
         // Orange == Power Cell
-        LevelSpawner {
-            color: Color::linear_rgb(1., 0.5, 0.0),
-            spawn: Box::new(|commands, info| {
-                commands.spawn((
-                    level_tag.clone(),
-                    Mesh3d(common.mesh_cube.clone()),
-                    MeshMaterial3d(common.material_red.clone()),
-                    Transform::from_translation(info.pos + Vec3::Y).with_scale(Vec3::splat(0.8)),
-                    RigidBody::Dynamic,
-                    Collider::cuboid(1.0, 1.0, 1.0),
-                    Draggable::default(),
-                ));
-            }),
-            skip_floor: false,
-        },
+        LevelSpawner::new(Color::linear_rgb(1., 0.5, 0.0), |commands, info| {
+            commands.spawn((
+                level_tag.clone(),
+                Mesh3d(common.mesh_cube.clone()),
+                MeshMaterial3d(common.material_red.clone()),
+                Transform::from_translation(info.pos + Vec3::Y).with_scale(Vec3::splat(0.8)),
+                RigidBody::Dynamic,
+                Collider::cuboid(1.0, 1.0, 1.0),
+                Draggable::default(),
+            ));
+        })
+        .lift_floor(),
         // Pink == Laser Source
-        LevelSpawner {
-            color: Color::linear_rgb(1., 0.5, 0.5),
-            spawn: Box::new(|commands, info| {
-                // Wall
-                spawn_cube(
-                    commands,
-                    info.pos + Vec3::Y,
-                    common.material_dark_gray.clone(),
-                );
-                spawn_cube(
-                    commands,
-                    info.pos + Vec3::Y * 2.,
-                    common.material_invisible.clone(),
-                );
+        LevelSpawner::new(Color::linear_rgb(1., 0.5, 0.5), |commands, info| {
+            // Wall
+            spawn_cube(
+                commands,
+                info.pos + Vec3::Y,
+                common.material_dark_gray.clone(),
+            );
+            spawn_cube(
+                commands,
+                info.pos + Vec3::Y * 2.,
+                common.material_invisible.clone(),
+            );
 
-                for d in [IVec2::X, IVec2::Y, IVec2::NEG_X, IVec2::NEG_Y] {
-                    let neighbor = info.grid + d;
-                    let neighbor_color = image
-                        .get_color_at(neighbor.x as u32, neighbor.y as u32)
-                        .unwrap();
-                    if neighbor_color.distance(&Color::linear_rgb(1., 1., 1.)) < 0.1 {
-                        // Spawn laser in this direction
-                        commands.spawn((
-                            level_tag.clone(),
-                            Mesh3d(common.mesh_cube.clone()),
-                            MeshMaterial3d(common.material_red.clone()),
-                            Transform::from_translation(
-                                info.pos + Vec3::Y + Vec3::new(d.x as f32, 0.0, d.y as f32) * 0.5,
-                            )
-                            .with_scale(Vec3::splat(0.5)),
-                            Laser {
-                                direction: Vec3::new(d.x as f32, 0.0, d.y as f32),
-                                beam: None,
-                            },
-                        ));
-                    }
+            for d in [IVec2::X, IVec2::Y, IVec2::NEG_X, IVec2::NEG_Y] {
+                let neighbor = info.grid + d;
+                let neighbor_color = image
+                    .get_color_at(neighbor.x as u32, neighbor.y as u32)
+                    .unwrap();
+                if neighbor_color.distance(&Color::linear_rgb(1., 1., 1.)) < 0.1 {
+                    // Spawn laser in this direction
+                    commands.spawn((
+                        level_tag.clone(),
+                        Mesh3d(common.mesh_cube.clone()),
+                        MeshMaterial3d(common.material_red.clone()),
+                        Transform::from_translation(
+                            info.pos + Vec3::Y + Vec3::new(d.x as f32, 0.0, d.y as f32) * 0.5,
+                        )
+                        .with_scale(Vec3::splat(0.5)),
+                        Laser {
+                            direction: Vec3::new(d.x as f32, 0.0, d.y as f32),
+                            beam: None,
+                        },
+                    ));
                 }
-            }),
-            skip_floor: false,
-        },
+            }
+        })
+        .lift_floor(),
         // Red == Player
-        LevelSpawner {
-            color: Color::linear_rgb(1., 0., 0.),
-            spawn: Box::new(|commands, info| {
-                if !should_spawn_player {
-                    return;
-                }
-                commands.spawn((
-                    // No level tag on the player
-                    Mesh3d(common.mesh_sphere.clone()),
-                    MeshMaterial3d(common.material_gray.clone()),
-                    Transform::from_translation(info.pos + Vec3::new(0.0, 2., 0.)),
-                    RigidBody::Dynamic,
-                    Collider::sphere(0.45),
-                    Player {},
-                ));
-            }),
-            skip_floor: false,
-        },
+        LevelSpawner::new(Color::linear_rgb(1., 0., 0.), |commands, info| {
+            if !should_spawn_player {
+                return;
+            }
+            commands.spawn((
+                // No level tag on the player
+                Mesh3d(common.mesh_sphere.clone()),
+                MeshMaterial3d(common.material_gray.clone()),
+                Transform::from_translation(info.pos + Vec3::new(0.0, 2., 0.)),
+                RigidBody::Dynamic,
+                Collider::sphere(0.45),
+                Player {},
+                GravityScale(2.),
+            ));
+        }),
         // Yellow == Save/Spawn Point
-        LevelSpawner {
-            color: Color::linear_rgb(1., 1., 0.),
-            spawn: Box::new(|commands, info| {
-                commands.spawn((
-                    level_tag.clone(),
-                    Mesh3d(common.mesh_cube.clone()),
-                    MeshMaterial3d(common.material_invisible.clone()),
-                    Transform::from_translation(info.pos + Vec3::new(0.0, 2.0, 0.0)),
-                    Collider::cuboid(1.0, 1.0, 1.0),
-                    SpawnPoint {},
-                ));
-            }),
-            skip_floor: false,
-        },
+        LevelSpawner::new(Color::linear_rgb(1., 1., 0.), |commands, info| {
+            commands.spawn((
+                level_tag.clone(),
+                Mesh3d(common.mesh_cube.clone()),
+                MeshMaterial3d(common.material_invisible.clone()),
+                Transform::from_translation(info.pos + Vec3::new(0.0, 2.0, 0.0)),
+                Collider::cuboid(1.0, 1.0, 1.0),
+                SpawnPoint {},
+            ));
+        })
+        .lift_floor(),
         // Magenta == Zipline
-        LevelSpawner {
-            color: Color::linear_rgb(1., 0., 1.),
-            spawn: Box::new(|_commands, info| {
-                zipline_positions.lock().unwrap().push(info.grid);
-            }),
-            skip_floor: false,
-        },
+        LevelSpawner::new(Color::linear_rgb(1., 0., 1.), |_commands, info| {
+            zipline_positions
+                .lock()
+                .unwrap()
+                .insert(info.grid, info.pos + Vec3::Y * 0.5);
+        })
+        .lift_floor(),
         // Dark Magenta == Zipline without floor
-        LevelSpawner {
-            color: Color::linear_rgb(0.5, 0., 0.5),
-            spawn: Box::new(|commands, info| {
-                zipline_positions.lock().unwrap().push(info.grid);
+        LevelSpawner::new(Color::linear_rgb(0.5, 0., 0.5), |commands, info| {
+            zipline_positions
+                .lock()
+                .unwrap()
+                .insert(info.grid, info.pos + Vec3::Y * 0.5);
 
-                commands.spawn((
-                    level_tag.clone(),
-                    Mesh3d(common.mesh_sphere.clone()),
-                    MeshMaterial3d(common.material_dark_gray.clone()),
-                    Transform::from_translation(info.pos),
-                    GlobalTransform::default(),
-                    Well,
-                ));
-            }),
-            skip_floor: true,
-        },
+            commands.spawn((
+                level_tag.clone(),
+                Mesh3d(common.mesh_sphere.clone()),
+                MeshMaterial3d(common.material_dark_gray.clone()),
+                Transform::from_translation(info.pos),
+                GlobalTransform::default(),
+                Well,
+            ));
+        })
+        .skip_floor()
+        .lift_entity(),
     ];
 
     for x in 0..image.width() {
@@ -625,13 +644,38 @@ fn load_level(
                 continue;
             }
 
-            let info = SpawnInfo {
+            let mut info = SpawnInfo {
                 pos: Vec3::new(x as f32, 0.0, z as f32) + shift,
                 grid: IVec2::new(x as i32, z as i32),
             };
 
+            let mut floor_height = 0.0;
+            let mut entity_height = 0.0;
+            if candidate.lift_entity || candidate.lift_floor {
+                for dx in -1..=1 {
+                    for dz in -1..=1 {
+                        if is_raised(info.grid + IVec2::new(dx, dz)) {
+                            entity_height = 1.0;
+                            if dx == 0 || dz == 0 {
+                                floor_height = 1.0;
+                            }
+                        }
+                    }
+                }
+            }
+
             if !candidate.skip_floor {
+                if candidate.lift_floor {
+                    info.pos += Vec3::Y * floor_height;
+                }
                 spawn_floor(commands, info.pos);
+                if candidate.lift_floor {
+                    info.pos -= Vec3::Y * floor_height;
+                }
+            }
+
+            if candidate.lift_entity {
+                info.pos += Vec3::Y * entity_height;
             }
 
             (candidate.spawn)(commands, &info);
@@ -642,7 +686,6 @@ fn load_level(
 
     // Spawn ziplines
     spawn_ziplines(
-        shift,
         &level_tag,
         commands,
         common,
@@ -668,14 +711,11 @@ fn load_level(
 }
 
 fn spawn_ziplines(
-    shift: Vec3,
     level_tag: &LevelTag,
     commands: &mut Commands,
     common: &Common,
-    zipline_positions: &[IVec2],
+    zipline_positions: &HashMap<IVec2, Vec3>,
 ) {
-    let zipline_positions: HashSet<IVec2> = zipline_positions.iter().copied().collect();
-
     fn neighbors8(p: IVec2) -> Vec<IVec2> {
         let mut out: Vec<IVec2> = Vec::with_capacity(8);
         for dx in -1..=1 {
@@ -690,14 +730,14 @@ fn spawn_ziplines(
 
     // Group the ziplines into contiguous loops or lines.
     let mut visited: HashSet<IVec2> = HashSet::new();
-    for &p in zipline_positions.iter() {
+    for &p in zipline_positions.keys() {
         if visited.contains(&p) {
             continue;
         }
 
         if neighbors8(p)
             .into_iter()
-            .filter(|neighbor| zipline_positions.contains(neighbor))
+            .filter(|neighbor| zipline_positions.contains_key(neighbor))
             .count()
             != 1
         {
@@ -711,7 +751,7 @@ fn spawn_ziplines(
         while i < region.len() {
             let q = region[i];
             for neighbor in neighbors8(q) {
-                if !visited.contains(&neighbor) && zipline_positions.contains(&neighbor) {
+                if !visited.contains(&neighbor) && zipline_positions.contains_key(&neighbor) {
                     visited.insert(neighbor);
                     region.push(neighbor);
                 }
@@ -719,27 +759,25 @@ fn spawn_ziplines(
             i += 1;
         }
 
-        spawn_zipline(shift, level_tag, commands, common, &region);
+        spawn_zipline(level_tag, commands, common, &region, zipline_positions);
     }
 }
 
 /// Spawn a single zipline, in order.
 fn spawn_zipline(
-    shift: Vec3,
     level_tag: &LevelTag,
     commands: &mut Commands,
     common: &Common,
     zipline_positions: &[IVec2],
+    world_positions: &HashMap<IVec2, Vec3>,
 ) {
     let mut nodes: Vec<Vec3> = Vec::new();
     for i in 0..zipline_positions.len() - 1 {
         let a = zipline_positions[i];
         let b = zipline_positions[i + 1];
 
-        let height = 0.5;
-
-        let end_a = a.as_vec2().extend(height).xzy() + shift;
-        let end_b = b.as_vec2().extend(height).xzy() + shift;
+        let end_a = world_positions[&a];
+        let end_b = world_positions[&b];
 
         nodes.push((end_a + end_b) / 2.);
 

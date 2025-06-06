@@ -52,7 +52,12 @@ fn clear_fog_system(
 ) {
     let mut grid_to_clear: HashSet<IVec2> = HashSet::new();
     for p in clear.iter() {
-        grid_to_clear.insert(p.translation().xz().round().as_ivec2());
+        let p = p.translation().xz().round().as_ivec2();
+        for dx in -1..=1 {
+            for dz in -1..=1 {
+                grid_to_clear.insert(p + IVec2::new(dx, dz));
+            }
+        }
     }
 
     let Ok(player) = player.single() else {
