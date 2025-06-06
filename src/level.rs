@@ -77,8 +77,7 @@ struct SpawnInfo {
 #[derive(Component)]
 struct Hallway {
     pattern: HallwayPattern,
-    room1: LevelName,
-    room2: LevelName,
+    rooms: Vec<LevelName>,
 }
 
 fn load_level_system(
@@ -95,6 +94,7 @@ fn load_level_system(
     hallways: Query<(&Transform, &Hallway, &LevelTag)>,
 
     mut hallway_junctions: Local<HashMap<LevelName, Vec<HallwayJunction>>>,
+    mut junction_to_levels: Local<HashMap<HallwayPattern, Vec<LevelName>>>,
 ) {
     // Check that all levels are loaded
     for level in levels.levels.values() {
@@ -115,6 +115,15 @@ fn load_level_system(
                 )
             })
             .collect();
+
+        for (level, junctions) in hallway_junctions.iter() {
+            for junction in junctions.iter() {
+                junction_to_levels
+                    .entry(junction.pattern)
+                    .or_default()
+                    .push(level.clone());
+            }
+        }
     }
 
     // If the player is in a hallway, load both levels.
@@ -131,6 +140,7 @@ fn load_level_system(
             &common,
             image_assets.get(&levels.levels[&first_level]).unwrap(),
             true,
+            &junction_to_levels,
         );
         *has_loaded_player = true;
         active_levels.insert(first_level, Vec3::ZERO);
@@ -149,7 +159,7 @@ fn load_level_system(
         if hallway_transform.translation.distance(player.translation) < 1.0 {
             is_in_hall = true;
             // Player is in the hallway!
-            for level_to_load in [&hallway.room1, &hallway.room2] {
+            for level_to_load in hallway.rooms.iter() {
                 if !active_levels.contains_key(level_to_load) {
                     let old_level_junctions = &hallway_junctions[&hallway_level.level];
                     let new_level_image = image_assets.get(&levels.levels[level_to_load]).unwrap();
@@ -193,6 +203,7 @@ fn load_level_system(
                         &common,
                         new_level_image,
                         false,
+                        &junction_to_levels,
                     );
                     active_levels.insert(level_to_load.clone(), new_shift);
                 }
@@ -322,6 +333,7 @@ fn load_level(
     common: &Common,
     image: &Image,
     should_spawn_player: bool,
+    junction_to_levels: &HashMap<HallwayPattern, Vec<LevelName>>,
 ) {
     struct LevelSpawner<'a> {
         color: Color,
@@ -638,8 +650,7 @@ fn load_level(
                     .with_scale(Vec3::splat(0.7)),
                 Hallway {
                     pattern: hallway_pattern.pattern,
-                    room1: LevelName::from_string("map1.png".to_string()),
-                    room2: LevelName::from_string("map2.png".to_string()),
+                    rooms: junction_to_levels[&hallway_pattern.pattern].clone(),
                 },
             ));
         }
