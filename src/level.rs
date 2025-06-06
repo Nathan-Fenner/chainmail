@@ -13,7 +13,22 @@ use crate::{
 
 pub struct LevelPlugin;
 
-type LevelName = String;
+#[derive(Clone, Eq, PartialEq, Debug, Hash)]
+pub struct LevelName {
+    level_name: String,
+}
+
+impl LevelName {
+    fn from_string(level_name: String) -> Self {
+        Self { level_name }
+    }
+}
+
+impl std::fmt::Display for LevelName {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.level_name)
+    }
+}
 
 #[derive(Resource)]
 pub struct Levels {
@@ -40,7 +55,7 @@ fn setup_levels_system(mut commands: Commands, asset_server: Res<AssetServer>) {
             .iter()
             .map(|map_name| {
                 (
-                    map_name.to_string(),
+                    LevelName::from_string(map_name.to_string()),
                     asset_server.load_with_settings(
                         *map_name,
                         |settings: &mut ImageLoaderSettings| {
@@ -91,19 +106,19 @@ fn load_level_system(
     // If there is no player, load the first level.
 
     if !*has_loaded_player {
-        let first_level = "map1.png";
+        let first_level = LevelName::from_string("map1.png".to_string());
         load_level(
             Vec3::ZERO,
             LevelTag {
-                level: first_level.to_string(),
+                level: first_level.clone(),
             },
             &mut commands,
             &common,
-            image_assets.get(&levels.levels[first_level]).unwrap(),
+            image_assets.get(&levels.levels[&first_level]).unwrap(),
             true,
         );
         *has_loaded_player = true;
-        active_levels.insert(first_level.to_string(), Vec3::ZERO);
+        active_levels.insert(first_level, Vec3::ZERO);
         return;
     }
 
@@ -181,7 +196,7 @@ fn load_level_system(
         });
 
         if let Some((_, _, closest_level)) = closest_level {
-            let mut must_keep: HashSet<&String> = HashSet::new();
+            let mut must_keep: HashSet<&LevelName> = HashSet::new();
             for (_, t, level) in level_items.iter() {
                 if t.translation.distance(player.translation) < 2.5 {
                     must_keep.insert(&level.level);
@@ -597,8 +612,8 @@ fn load_level(
                     .with_scale(Vec3::splat(0.7)),
                 Hallway {
                     pattern: hallway_pattern.pattern,
-                    room1: "map1.png".to_string(),
-                    room2: "map2.png".to_string(),
+                    room1: LevelName::from_string("map1.png".to_string()),
+                    room2: LevelName::from_string("map2.png".to_string()),
                 },
             ));
         }
