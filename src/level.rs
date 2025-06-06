@@ -93,6 +93,8 @@ fn load_level_system(
     level_items: Query<(Entity, &Transform, &LevelTag)>,
     player: Query<&Transform, With<Player>>,
     hallways: Query<(&Transform, &Hallway, &LevelTag)>,
+
+    mut hallway_junctions: Local<HashMap<LevelName, Vec<HallwayJunction>>>,
 ) {
     // Check that all levels are loaded
     for level in levels.levels.values() {
@@ -100,6 +102,19 @@ fn load_level_system(
             // This level has not yet loaded.
             return;
         }
+    }
+
+    if hallway_junctions.is_empty() {
+        *hallway_junctions = levels
+            .levels
+            .iter()
+            .map(|(level, image)| {
+                (
+                    level.clone(),
+                    get_hallway_junctions(image_assets.get(image).unwrap()),
+                )
+            })
+            .collect();
     }
 
     // If the player is in a hallway, load both levels.
@@ -136,15 +151,11 @@ fn load_level_system(
             // Player is in the hallway!
             for level_to_load in [&hallway.room1, &hallway.room2] {
                 if !active_levels.contains_key(level_to_load) {
-                    let old_level_halls = hallway_patterns(
-                        image_assets
-                            .get(&levels.levels[&hallway_level.level])
-                            .unwrap(),
-                    );
+                    let old_level_junctions = &hallway_junctions[&hallway_level.level];
                     let new_level_image = image_assets.get(&levels.levels[level_to_load]).unwrap();
-                    let new_level_halls = hallway_patterns(new_level_image);
+                    let new_level_junctions = &hallway_junctions[level_to_load];
 
-                    let Some(old_hallway) = old_level_halls
+                    let Some(old_hallway) = old_level_junctions
                         .iter()
                         .find(|h| h.pattern == hallway.pattern)
                     else {
@@ -155,7 +166,7 @@ fn load_level_system(
                         continue;
                     };
 
-                    let Some(new_hallway) = new_level_halls
+                    let Some(new_hallway) = new_level_junctions
                         .iter()
                         .find(|h| h.pattern == hallway.pattern)
                     else {
@@ -226,7 +237,7 @@ struct HallwayJunction {
     grids: Vec<IVec2>,
 }
 
-fn hallway_patterns(image: &Image) -> Vec<HallwayJunction> {
+fn get_hallway_junctions(image: &Image) -> Vec<HallwayJunction> {
     fn is_hallway_color(c: &Color) -> bool {
         c.distance(&Color::linear_rgb(0.5, 0.5, 0.5)) < 0.1
             || c.distance(&Color::linear_rgb(0.75, 0.75, 0.75)) < 0.1
@@ -607,7 +618,7 @@ fn load_level(
         &zipline_positions.lock().unwrap(),
     );
 
-    for hallway_pattern in hallway_patterns(image) {
+    for hallway_pattern in get_hallway_junctions(image) {
         for p in hallway_pattern.grids.iter() {
             commands.spawn((
                 level_tag.clone(),
