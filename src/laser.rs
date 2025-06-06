@@ -1,7 +1,7 @@
 use avian3d::prelude::*;
 use bevy::{pbr::light_consts::lux::RAW_SUNLIGHT, prelude::*};
 
-use crate::common::Common;
+use crate::{common::Common, level::LevelTag};
 
 pub struct LaserPlugin;
 
@@ -24,10 +24,10 @@ fn draw_lasers_system(
     spatial: SpatialQuery,
     common: Res<Common>,
     mut commands: Commands,
-    mut lasers: Query<(Entity, &Transform, &mut Laser)>,
+    mut lasers: Query<(&Transform, &mut Laser, &LevelTag)>,
     mut beam: Query<&mut Transform, (With<LaserBeam>, Without<Laser>)>,
 ) {
-    for (laser_entity, laser_transform, mut laser) in lasers.iter_mut() {
+    for (laser_transform, mut laser, laser_level) in lasers.iter_mut() {
         let cast = spatial.cast_ray(
             laser_transform.translation + laser.direction * 0.05,
             Dir3::try_from(laser.direction).unwrap_or(Dir3::X),
@@ -62,6 +62,7 @@ fn draw_lasers_system(
                             ..default()
                         },
                         beam_transform,
+                        laser_level.clone(),
                     ))
                     .with_child((
                         // Light at the impact point
@@ -77,7 +78,6 @@ fn draw_lasers_system(
                     .id();
 
                 laser.beam = Some(beam_id);
-                commands.entity(laser_entity).add_child(beam_id);
             }
         }
     }
