@@ -559,6 +559,20 @@ fn load_level(
             || c.distance(&Color::linear_rgb(0.5, 0.75, 1.0)) < 0.1
     };
 
+    let mut tile_grid: HashMap<IVec2, Tile> = HashMap::new();
+    for x in 0..image.width() {
+        for z in 0..image.height() {
+            let color = image
+                .get_color_at(x, z)
+                .expect("must be able to get color in image");
+            let tile = color_to_tile(&color);
+            tile_grid.insert(
+                IVec2::new(x as i32, z as i32),
+                tile.unwrap_or(Tile::Outside),
+            );
+        }
+    }
+
     #[allow(clippy::eq_op)]
     let mut color_spawners: HashMap<Tile, LevelSpawner> = [
         // White == Floor
@@ -717,10 +731,10 @@ fn load_level(
 
             for d in [IVec2::X, IVec2::Y, IVec2::NEG_X, IVec2::NEG_Y] {
                 let neighbor = info.grid + d;
-                let neighbor_color = image
-                    .get_color_at(neighbor.x as u32, neighbor.y as u32)
-                    .unwrap();
-                if neighbor_color.distance(&Color::linear_rgb(1., 1., 1.)) < 0.1 {
+
+                let neighbor_color = tile_grid[&neighbor];
+
+                if neighbor_color == Tile::Floor {
                     // Spawn laser in this direction
                     commands.spawn((
                         level_tag.clone(),
@@ -834,20 +848,6 @@ fn load_level(
     ]
     .into_iter()
     .collect();
-
-    let mut tile_grid: HashMap<IVec2, Tile> = HashMap::new();
-    for x in 0..image.width() {
-        for z in 0..image.height() {
-            let color = image
-                .get_color_at(x, z)
-                .expect("must be able to get color in image");
-            let tile = color_to_tile(&color);
-            tile_grid.insert(
-                IVec2::new(x as i32, z as i32),
-                tile.unwrap_or(Tile::Outside),
-            );
-        }
-    }
 
     for (grid_position, grid_tile) in tile_grid.iter() {
         let Some(candidate) = color_spawners.get_mut(grid_tile) else {
