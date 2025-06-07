@@ -1,5 +1,4 @@
 use bevy::{platform::collections::HashSet, prelude::*};
-use rand::Rng;
 
 use crate::{common::Common, player::Player};
 
@@ -24,7 +23,6 @@ const GRID_SPACING: f32 = 1.8;
 const FOG_GRID_SIZE: i32 = 50;
 
 fn spawn_fog_system(mut commands: Commands, common: Res<Common>) {
-    let mut rand = rand::rng();
     for x in 0..FOG_GRID_SIZE {
         for z in 0..FOG_GRID_SIZE {
             commands.spawn((
@@ -32,14 +30,6 @@ fn spawn_fog_system(mut commands: Commands, common: Res<Common>) {
                 MeshMaterial3d(common.material_fog.clone()),
                 Fog { progress: 0.0 },
                 Transform::from_translation(Vec3::new(x as f32, 0.0, z as f32) * GRID_SPACING)
-                    .looking_to(
-                        Vec3::new(
-                            rand.random_range(-1.0..1.0),
-                            rand.random_range(-0.1..0.1),
-                            rand.random_range(-1.0..1.0),
-                        ),
-                        Vec3::Y,
-                    )
                     .with_scale(Vec3::splat(1.5)),
             ));
         }
