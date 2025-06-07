@@ -16,7 +16,7 @@ fn mainframe_point_light() -> PointLight {
 }
 
 #[derive(Component)]
-#[require(Interactible = Interactible::radius(1.9), PointLight = mainframe_point_light())]
+#[require(Interactible = Interactible::radius(1.9).with_priority(2), PointLight = mainframe_point_light())]
 pub struct Mainframe {
     /// Whether the player has activate the mainframe.
     pub active: bool,
