@@ -1,7 +1,7 @@
 use avian3d::prelude::*;
 use bevy::{pbr::light_consts::lux::RAW_SUNLIGHT, prelude::*};
 
-use crate::{common::Common, level::LevelTag};
+use crate::{common::Common, fog::DoesNotClearFog, level::LevelTag};
 
 pub struct LaserPlugin;
 
@@ -51,6 +51,7 @@ fn draw_lasers_system(
             } else {
                 let beam_id = commands
                     .spawn((
+                        DoesNotClearFog,
                         Mesh3d(common.mesh_cube.clone()),
                         MeshMaterial3d(common.material_laser.clone()),
                         LaserBeam,
@@ -66,6 +67,7 @@ fn draw_lasers_system(
                     ))
                     .with_child((
                         // Light at the impact point
+                        DoesNotClearFog,
                         Transform::from_translation(Vec3::new(0.0, 0.0, -0.5)),
                         PointLight {
                             range: 3.,

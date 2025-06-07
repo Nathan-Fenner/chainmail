@@ -8,8 +8,8 @@ use bevy::{
 
 use crate::{
     chain::ChainLink, common::Common, door::Door, draggable::Draggable, evil_robot::EvilRobot,
-    laser::Laser, mainframe::Mainframe, player::Player, spawn_point::SpawnPoint, well::Well,
-    zipline::Zipline,
+    fog::DoesNotClearFog, laser::Laser, mainframe::Mainframe, player::Player,
+    spawn_point::SpawnPoint, well::Well, zipline::Zipline,
 };
 
 pub struct LevelPlugin;
@@ -81,11 +81,19 @@ struct Hallway {
     rooms: Vec<LevelName>,
 }
 
+struct Resetting {
+    time_left: f32,
+    locus: Vec3,
+}
+
 fn load_level_system(
+    time: Res<Time>,
     mut commands: Commands,
     levels: Res<Levels>,
     image_assets: Res<Assets<Image>>,
     mut active_levels: Local<HashMap<LevelName, Vec3>>,
+    // These levels are being reset, but may be restored if needed.
+    mut resetting_levels: Local<HashMap<LevelName, Resetting>>,
     mut has_loaded_player: Local<bool>,
 
     common: Res<Common>,
@@ -161,6 +169,19 @@ fn load_level_system(
             is_in_hall = true;
             // Player is in the hallway!
             for level_to_load in hallway.rooms.iter() {
+                if resetting_levels.contains_key(level_to_load) {
+                    // Restore the level instead of allowing it to despawn.
+                    active_levels.insert(
+                        level_to_load.clone(),
+                        resetting_levels.remove(level_to_load).unwrap().locus,
+                    );
+                    for (item_entity, _, level) in level_items.iter() {
+                        if level.level == *level_to_load {
+                            commands.entity(item_entity).remove::<DoesNotClearFog>();
+                        }
+                    }
+                }
+
                 if !active_levels.contains_key(level_to_load) {
                     let old_level_junctions = &hallway_junctions[&hallway_level.level];
                     let new_level_image = image_assets.get(&levels.levels[level_to_load]).unwrap();
@@ -226,17 +247,46 @@ fn load_level_system(
                 }
             }
 
-            for (entity, _, level) in level_items.iter() {
-                if must_keep.contains(&level.level) {
-                    continue;
+            let current_active_levels = std::mem::take(&mut *active_levels);
+            for (current_key, current_state) in current_active_levels {
+                if current_key == closest_level.level || must_keep.contains(&current_key) {
+                    // Retain this level.
+                    active_levels.insert(current_key, current_state);
+                } else {
+                    // This level must be marked for deletion.
+                    for (entity, _, level) in level_items.iter() {
+                        if level.level == current_key {
+                            commands.entity(entity).insert(DoesNotClearFog);
+                        }
+                    }
+                    resetting_levels.insert(
+                        current_key,
+                        Resetting {
+                            time_left: 4.0,
+                            locus: current_state,
+                        },
+                    );
                 }
-                if level != closest_level {
+            }
+        }
+    }
+
+    resetting_levels.retain(|level, resetting| {
+        let will_despawn = resetting.time_left < 0.0;
+        resetting.time_left -= time.delta_secs();
+        if will_despawn {
+            for (entity, _, entity_level) in level_items.iter() {
+                if entity_level.level == *level {
                     commands.entity(entity).despawn();
                 }
             }
-            active_levels.retain(|key, _| key == &closest_level.level || must_keep.contains(key));
+            // Remove the level from this list
+            false
+        } else {
+            // Keep the level alive for now
+            true
         }
-    }
+    });
 }
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug, Hash)]

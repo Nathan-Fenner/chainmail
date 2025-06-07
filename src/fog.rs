@@ -17,6 +17,9 @@ struct Fog {
     progress: f32,
 }
 
+#[derive(Component)]
+pub struct DoesNotClearFog;
+
 const GRID_SPACING: f32 = 1.8;
 const FOG_GRID_SIZE: i32 = 50;
 
@@ -47,7 +50,7 @@ fn clear_fog_system(
     time: Res<Time>,
     mut fog: Query<(&mut Transform, &mut Fog)>,
     player: Query<&GlobalTransform, With<Player>>,
-    clear: Query<&GlobalTransform, Without<Fog>>,
+    clear: Query<&GlobalTransform, (Without<DoesNotClearFog>, Without<Fog>)>,
 ) {
     let mut grid_to_clear: HashSet<IVec2> = HashSet::new();
     for p in clear.iter() {
@@ -107,6 +110,5 @@ fn clear_fog_system(
         };
 
         fog.scale = fog.scale.lerp(Vec3::splat(target_scale), 0.2);
-        // fog.scale.y = 3.2;
     }
 }
