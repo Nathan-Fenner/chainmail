@@ -4,6 +4,7 @@ use bevy::prelude::*;
 pub struct Common {
     pub mesh_cube: Handle<Mesh>,
     pub mesh_sphere: Handle<Mesh>,
+    pub mesh_plane: Handle<Mesh>,
     pub mesh_small_sphere: Handle<Mesh>,
     pub material_gray: Handle<StandardMaterial>,
     pub material_dark_gray: Handle<StandardMaterial>,
@@ -14,6 +15,10 @@ pub struct Common {
     pub material_laser: Handle<StandardMaterial>,
     pub material_invisible: Handle<StandardMaterial>,
     pub material_fog: Handle<StandardMaterial>,
+
+    pub image_e: Handle<Image>,
+
+    pub material_icon_e: Handle<StandardMaterial>,
 }
 
 #[derive(Default)]
@@ -28,11 +33,14 @@ impl Plugin for CommonPlugin {
 /// Inserts the `Common` resource.
 pub fn setup_common(
     mut commands: Commands,
+    asset_server: Res<AssetServer>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
+    let image_e: Handle<Image> = asset_server.load("icon_e.png");
     commands.insert_resource(Common {
         mesh_cube: meshes.add(Cuboid::default()),
+        mesh_plane: meshes.add(Plane3d::new(-Vec3::Z, Vec2::new(0.5, 0.5))),
         mesh_sphere: meshes.add(Sphere::default()),
         mesh_small_sphere: meshes.add(Sphere::new(0.2)),
         material_gray: materials.add(StandardMaterial {
@@ -86,5 +94,11 @@ pub fn setup_common(
 
             ..default()
         }),
+        material_icon_e: materials.add(StandardMaterial {
+            base_color_texture: Some(image_e.clone()),
+            alpha_mode: AlphaMode::Mask(0.5),
+            ..default()
+        }),
+        image_e,
     });
 }

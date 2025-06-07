@@ -1,6 +1,9 @@
 use bevy::prelude::*;
 
-use crate::player::Player;
+use crate::{
+    common::{Common, setup_common},
+    player::{Player, PlayerCamera},
+};
 
 /// A component for things which can be interacted with.
 #[derive(Component, Debug)]
@@ -49,6 +52,7 @@ impl Plugin for InteractiblePlugin {
             size: 1.,
             velocity: 0.,
         })
+        .add_systems(Startup, spawn_interactible_dot_system.after(setup_common))
         .add_systems(
             Update,
             (
@@ -59,6 +63,22 @@ impl Plugin for InteractiblePlugin {
                 .chain(),
         );
     }
+}
+
+#[derive(Resource)]
+struct InteractibleDot {
+    dot_entity: Entity,
+}
+
+fn spawn_interactible_dot_system(mut commands: Commands, common: Res<Common>) {
+    let dot_entity = commands
+        .spawn((
+            Mesh3d(common.mesh_plane.clone()),
+            MeshMaterial3d(common.material_icon_e.clone()),
+        ))
+        .id();
+
+    commands.insert_resource(InteractibleDot { dot_entity });
 }
 
 #[derive(Resource)]
@@ -121,10 +141,23 @@ fn set_nearest_interactible_system(
 
 fn visualize_interactible_system(
     time: Res<Time>,
-    mut gizmos: Gizmos,
     mut nearest_state: ResMut<NearestInteractible>,
     global_transform: Query<&GlobalTransform>,
+    mut dot_transform: Query<&mut Transform>,
+
+    the_dot: Res<InteractibleDot>,
+    camera: Query<&GlobalTransform, With<PlayerCamera>>,
 ) {
+    let Ok(mut dot_transform) = dot_transform.get_mut(the_dot.dot_entity) else {
+        return;
+    };
+
+    let Ok(camera) = camera.single() else {
+        return;
+    };
+
+    dot_transform.scale = Vec3::splat(0.0);
+
     let delta = time.delta_secs();
     // TODO: animate this
     let Some(nearest) = nearest_state.entity else {
@@ -139,11 +172,11 @@ fn visualize_interactible_system(
     nearest_state.velocity *= (0.05f32).powf(delta);
     nearest_state.velocity += (1.0 - nearest_state.size) * 100. * delta;
 
-    gizmos.sphere(
-        transform.translation() + Vec3::Y,
-        0.15 * nearest_state.size,
-        Color::linear_rgb(1., 1., 1.),
-    );
+    dot_transform.translation = transform.translation() + Vec3::Y;
+    dot_transform.scale = Vec3::splat(0.6 * nearest_state.size);
+    let to_camera = (camera.translation() - dot_transform.translation).normalize();
+    dot_transform.translation += to_camera * 1.0;
+    dot_transform.look_at(camera.translation(), -Vec3::Y);
 }
 
 pub fn mark_activated_system(
