@@ -4,10 +4,11 @@ use bevy::prelude::*;
 pub struct Common {
     pub mesh_cube: Handle<Mesh>,
     pub mesh_sphere: Handle<Mesh>,
+    pub mesh_small_sphere: Handle<Mesh>,
     pub material_gray: Handle<StandardMaterial>,
     pub material_dark_gray: Handle<StandardMaterial>,
     pub material_yellow: Handle<StandardMaterial>,
-    pub material_red: Handle<StandardMaterial>,
+    pub material_orange: Handle<StandardMaterial>,
     pub material_beepboop: Handle<StandardMaterial>,
     pub material_active: Handle<StandardMaterial>,
     pub material_laser: Handle<StandardMaterial>,
@@ -33,6 +34,7 @@ pub fn setup_common(
     commands.insert_resource(Common {
         mesh_cube: meshes.add(Cuboid::default()),
         mesh_sphere: meshes.add(Sphere::default()),
+        mesh_small_sphere: meshes.add(Sphere::new(0.2)),
         material_gray: materials.add(StandardMaterial {
             base_color: Color::linear_rgb(0.4, 0.5, 0.6),
             perceptual_roughness: 1.0,
@@ -48,7 +50,7 @@ pub fn setup_common(
             perceptual_roughness: 1.0,
             ..default()
         }),
-        material_red: materials.add(StandardMaterial {
+        material_orange: materials.add(StandardMaterial {
             base_color: Color::linear_rgb(0.9, 0.4, 0.1),
             perceptual_roughness: 1.0,
             ..default()

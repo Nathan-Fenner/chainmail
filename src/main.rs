@@ -1,3 +1,4 @@
+pub mod chain;
 pub mod common;
 pub mod door;
 pub mod draggable;
@@ -32,7 +33,10 @@ use player::{PlayerCamera, PlayerPlugin};
 use spawn_point::SpawnPointPlugin;
 use well::WellPlugin;
 
-use crate::{fog::FogPlugin, laser::LaserPlugin, level::LevelPlugin, zipline::ZiplinePlugin};
+use crate::{
+    chain::ChainPlugin, fog::FogPlugin, laser::LaserPlugin, level::LevelPlugin,
+    zipline::ZiplinePlugin,
+};
 
 fn main() {
     App::new()
@@ -53,6 +57,7 @@ fn main() {
             DoorPlugin,
             FogPlugin,
         ))
+        .add_plugins(ChainPlugin)
         .add_systems(Startup, setup.after(setup_common))
         .add_systems(Update, unlock_doors_when_all_mainframes_active)
         .run();

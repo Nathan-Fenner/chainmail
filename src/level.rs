@@ -7,8 +7,9 @@ use bevy::{
 };
 
 use crate::{
-    common::Common, door::Door, draggable::Draggable, evil_robot::EvilRobot, laser::Laser,
-    mainframe::Mainframe, player::Player, spawn_point::SpawnPoint, well::Well, zipline::Zipline,
+    chain::ChainLink, common::Common, door::Door, draggable::Draggable, evil_robot::EvilRobot,
+    laser::Laser, mainframe::Mainframe, player::Player, spawn_point::SpawnPoint, well::Well,
+    zipline::Zipline,
 };
 
 pub struct LevelPlugin;
@@ -391,6 +392,7 @@ fn load_level(
     };
 
     let zipline_positions: Mutex<HashMap<IVec2, Vec3>> = Mutex::new(HashMap::default());
+    let chains: Mutex<HashMap<IVec2, Vec3>> = Mutex::new(HashMap::default());
 
     let is_raised = |p: IVec2| -> bool {
         let c = image.get_color_at(p.x as u32, p.y as u32).unwrap();
@@ -525,7 +527,7 @@ fn load_level(
             commands.spawn((
                 level_tag.clone(),
                 Mesh3d(common.mesh_cube.clone()),
-                MeshMaterial3d(common.material_red.clone()),
+                MeshMaterial3d(common.material_orange.clone()),
                 Transform::from_translation(info.pos + Vec3::Y).with_scale(Vec3::splat(0.8)),
                 RigidBody::Dynamic,
                 Collider::cuboid(1.0, 1.0, 1.0),
@@ -557,7 +559,7 @@ fn load_level(
                     commands.spawn((
                         level_tag.clone(),
                         Mesh3d(common.mesh_cube.clone()),
-                        MeshMaterial3d(common.material_red.clone()),
+                        MeshMaterial3d(common.material_orange.clone()),
                         Transform::from_translation(
                             info.pos + Vec3::Y + Vec3::new(d.x as f32, 0.0, d.y as f32) * 0.5,
                         )
@@ -625,6 +627,13 @@ fn load_level(
         })
         .skip_floor()
         .lift_entity(),
+        // Brown == Chain
+        LevelSpawner::new(
+            Color::linear_rgb(159.0 / 255.0, 113.0 / 255.0, 62.0 / 255.0),
+            |_commands, info| {
+                chains.lock().unwrap().insert(info.grid, info.pos + Vec3::Y);
+            },
+        ),
     ];
 
     for x in 0..image.width() {
@@ -708,6 +717,8 @@ fn load_level(
             ));
         }
     }
+
+    spawn_chains(&level_tag, commands, common, &chains.lock().unwrap());
 }
 
 fn spawn_ziplines(
@@ -800,4 +811,85 @@ fn spawn_zipline(
             closest_index: 0,
         },
     ));
+}
+
+fn spawn_chains(
+    level_tag: &LevelTag,
+    commands: &mut Commands,
+    common: &Common,
+    chain_positions: &HashMap<IVec2, Vec3>,
+) {
+    let mut chain_entities: HashMap<IVec2, Entity> = default();
+    for (chain_ball, chain_pos) in chain_positions.iter() {
+        let collision_layer = if (chain_ball.x + chain_ball.y) % 2 == 0 {
+            let mut interact = LayerMask::ALL;
+            interact.remove(4);
+            CollisionLayers::new(2, interact)
+        } else {
+            let mut interact = LayerMask::ALL;
+            interact.remove(2);
+            CollisionLayers::new(4, interact)
+        };
+        let mut chain_spawned = commands.spawn((
+            level_tag.clone(),
+            Mesh3d(common.mesh_small_sphere.clone()),
+            MeshMaterial3d(common.material_dark_gray.clone()),
+            Transform::from_translation(*chain_pos).with_scale(Vec3::splat(0.75)),
+            RigidBody::Dynamic,
+            ColliderDensity(0.1),
+            Collider::sphere(0.5),
+            collision_layer,
+        ));
+
+        if [IVec2::X, IVec2::NEG_X, IVec2::Y, IVec2::NEG_Y]
+            .into_iter()
+            .filter(|d| chain_positions.contains_key(&(*chain_ball + *d)))
+            .count()
+            == 1
+        {
+            // The ends of the chain are draggable.
+            chain_spawned.insert((
+                Draggable::default(),
+                Collider::cuboid(1., 1., 1.),
+                Mesh3d(common.mesh_cube.clone()),
+                Transform::from_translation(*chain_pos).with_scale(Vec3::splat(0.6)),
+                MeshMaterial3d(common.material_orange.clone()),
+            ));
+        }
+
+        let chain_id = chain_spawned.id();
+
+        chain_entities.insert(*chain_ball, chain_id);
+    }
+
+    for chain_ball in chain_entities.keys() {
+        for dx in -1..=1 {
+            for dz in -1..=1 {
+                if (dx, dz) <= (0, 0) {
+                    continue;
+                }
+                if dx != 0 && dz != 0 {
+                    continue;
+                }
+                let other = chain_ball + IVec2::new(dx, dz);
+                if !chain_entities.contains_key(&other) {
+                    continue;
+                }
+                // Add a constraint between them.
+                let delta = chain_positions[&other] - chain_positions[chain_ball];
+
+                commands.spawn((
+                    SphericalJoint::new(chain_entities[chain_ball], chain_entities[&other])
+                        .with_local_anchor_1(delta / 2.0)
+                        .with_local_anchor_2(-delta / 2.0)
+                        .with_linear_velocity_damping(0.5)
+                        .with_angular_velocity_damping(0.5)
+                        .with_compliance(0.05),
+                    ChainLink(chain_entities[chain_ball], chain_entities[&other]),
+                    Mesh3d(common.mesh_cube.clone()),
+                    MeshMaterial3d(common.material_dark_gray.clone()),
+                ));
+            }
+        }
+    }
 }
