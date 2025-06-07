@@ -14,7 +14,7 @@ impl Plugin for FogPlugin {
 
 #[derive(Component)]
 struct Fog {
-    speed: f32,
+    progress: f32,
 }
 
 const GRID_SPACING: f32 = 1.8;
@@ -25,11 +25,9 @@ fn spawn_fog_system(mut commands: Commands, common: Res<Common>) {
     for x in 0..FOG_GRID_SIZE {
         for z in 0..FOG_GRID_SIZE {
             commands.spawn((
-                Mesh3d(common.mesh_cube.clone()),
+                Mesh3d(common.mesh_sphere.clone()),
                 MeshMaterial3d(common.material_fog.clone()),
-                Fog {
-                    speed: rand.random_range(0.03..0.1),
-                },
+                Fog { progress: 0.0 },
                 Transform::from_translation(Vec3::new(x as f32, 0.0, z as f32) * GRID_SPACING)
                     .looking_to(
                         Vec3::new(
@@ -46,7 +44,8 @@ fn spawn_fog_system(mut commands: Commands, common: Res<Common>) {
 }
 
 fn clear_fog_system(
-    mut fog: Query<(&mut Transform, &Fog)>,
+    time: Res<Time>,
+    mut fog: Query<(&mut Transform, &mut Fog)>,
     player: Query<&GlobalTransform, With<Player>>,
     clear: Query<&GlobalTransform, Without<Fog>>,
 ) {
@@ -68,9 +67,9 @@ fn clear_fog_system(
 
     const FOG_SIZE: f32 = GRID_SPACING * FOG_GRID_SIZE as f32;
 
-    let max_scale = 3.0;
+    let max_scale = 4.5;
 
-    for (mut fog, fog_speed) in fog.iter_mut() {
+    for (mut fog, mut fog_speed) in fog.iter_mut() {
         if fog.translation.x < player.x - FOG_SIZE / 2. {
             fog.translation.x += FOG_SIZE;
             fog.scale = Vec3::splat(max_scale);
@@ -89,15 +88,25 @@ fn clear_fog_system(
         }
 
         let p = fog.translation.xz().round().as_ivec2();
-        let target_scale = if grid_to_clear.contains(&p) {
+        let progress_change = if grid_to_clear.contains(&p) {
+            1.0
+        } else {
+            -1.0
+        } * 30.
+            * time.delta_secs();
+
+        fog_speed.progress += progress_change;
+        fog_speed.progress = fog_speed.progress.clamp(-5.0, 40.0);
+
+        let fog_distance = player.xz().distance(fog.translation.xz());
+
+        let target_scale = if fog_speed.progress > fog_distance {
             0.0
         } else {
             max_scale
         };
 
-        // let fog_distance = player.xz().distance(fog.translation.xz());
-
-        fog.scale = fog.scale.lerp(Vec3::splat(target_scale), fog_speed.speed);
+        fog.scale = fog.scale.lerp(Vec3::splat(target_scale), 0.2);
         // fog.scale.y = 3.2;
     }
 }
