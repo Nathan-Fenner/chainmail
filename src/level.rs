@@ -1,9 +1,9 @@
 use std::sync::Mutex;
 
-use avian3d::{parry::utils::hashmap::HashMap, prelude::*};
+use avian3d::prelude::*;
 use bevy::{
     color::color_difference::EuclideanDistance, image::ImageLoaderSettings,
-    platform::collections::HashSet, prelude::*,
+    platform::collections::HashMap, platform::collections::HashSet, prelude::*,
 };
 
 use crate::{
@@ -43,7 +43,7 @@ impl std::fmt::Display for LevelName {
 
 #[derive(Resource)]
 pub struct Levels {
-    levels: HashMap<LevelName, Handle<Image>>, // map1: Handle<Image>,
+    levels: HashMap<LevelName, Handle<Image>>,
 }
 
 #[derive(Component, Clone, Eq, PartialEq, Debug, Hash)]
@@ -387,6 +387,103 @@ fn get_hallway_junctions(image: &Image) -> Vec<HallwayJunction> {
     patterns
 }
 
+#[derive(Copy, Clone, Eq, PartialEq, Debug, Hash)]
+enum Tile {
+    Floor,
+    ElevatedFloor,
+    Ramp,
+    Hallway(i32),
+    Wall,
+    ComputerMainframe,
+    Outside,
+    Zappy,
+    Well,
+    Door,
+    Crate,
+    LaserSource,
+    PlayerStart,
+    SpawnPoint,
+    Zipline,
+    ZiplineOverWell,
+    Chain,
+    Outlet,
+    PowerSource,
+}
+
+/// Converts from the color of the pixel to the type of tile.
+fn color_to_tile(color: &Color) -> Option<Tile> {
+    #[allow(clippy::eq_op)]
+    static MAPPING: [(Color, Tile); 21] = [
+        // White == Floor
+        (Color::linear_rgb(1., 1., 1.), Tile::Floor),
+        // Light Blue == Elevated Floor
+        (Color::linear_rgb(0.5, 0.75, 1.0), Tile::ElevatedFloor),
+        // Lighter Blue == Ramp
+        (Color::linear_rgb(186. / 255., 221. / 255., 1.), Tile::Ramp),
+        // === Hallways ===
+        // Light Grey == Connecting Hallway Floor
+        (Color::linear_rgb(0.75, 0.75, 0.75), Tile::Hallway(0)),
+        // Light Medium Grey == Connecting Hallway Floor
+        (Color::linear_rgb(0.625, 0.625, 0.625), Tile::Hallway(1)),
+        // Medium Grey == Connecting Hallway Floor
+        (Color::linear_rgb(0.5, 0.5, 0.5), Tile::Hallway(2)),
+        // Black == Wall
+        (Color::linear_rgb(0., 0., 0.), Tile::Wall),
+        // Green == Computer Mainframe
+        (Color::linear_rgb(0., 1., 0.), Tile::ComputerMainframe),
+        // Light Blue == Outside
+        (Color::linear_rgb(0.5, 0.5, 0.835), Tile::Outside),
+        // Blue == Zappy
+        (Color::linear_rgb(0., 0., 1.), Tile::Zappy),
+        // Dark Grey == Well
+        (Color::linear_rgb(0.25, 0.25, 0.25), Tile::Well),
+        // Purple == Door
+        (Color::linear_rgb(0.5, 0.0, 1.0), Tile::Door),
+        // Orange == Crate
+        (Color::linear_rgb(1., 0.5, 0.0), Tile::Crate),
+        // Pink == Laser Source
+        (Color::linear_rgb(1., 0.5, 0.5), Tile::LaserSource),
+        // Red == Player Start
+        (Color::linear_rgb(1., 0., 0.), Tile::PlayerStart),
+        // Yellow == Save/Spawn Point
+        (Color::linear_rgb(1., 1., 0.), Tile::SpawnPoint),
+        // Magenta == Zipline
+        (Color::linear_rgb(1., 0., 1.), Tile::Zipline),
+        // Dark Magenta == Zipline without floor
+        (Color::linear_rgb(0.5, 0., 0.5), Tile::ZiplineOverWell),
+        // Brown == Chain
+        (
+            Color::linear_rgb(159.0 / 255.0, 113.0 / 255.0, 62.0 / 255.0),
+            Tile::Chain,
+        ),
+        // Pale Purple == Electricity Outlet
+        (
+            Color::linear_rgb(158.0 / 255.0, 86.0 / 255.0, 158.0 / 255.0),
+            Tile::Outlet,
+        ),
+        // Light Teal == Power Source
+        (
+            Color::linear_rgb(128. / 255., 255. / 255., 221. / 255.),
+            Tile::PowerSource,
+        ),
+    ];
+
+    let color_distance_scale = 10_000;
+
+    let (color_distance, candidate) = MAPPING
+        .iter()
+        .map(|candidate| (candidate.0.distance(color), candidate))
+        .min_by_key(|a| (a.0 * color_distance_scale as f32) as i64)
+        .unwrap();
+
+    if color_distance > 0.1 {
+        eprintln!("unknown color {:?}", color);
+        return None;
+    }
+
+    Some(candidate.1)
+}
+
 fn load_level(
     shift: Vec3,
     level_tag: LevelTag,
@@ -397,16 +494,17 @@ fn load_level(
     junction_to_levels: &HashMap<HallwayPattern, Vec<LevelName>>,
 ) {
     struct LevelSpawner<'a> {
-        color: Color,
         spawn: Box<dyn FnMut(&mut Commands, &SpawnInfo) + 'a>,
         skip_floor: bool,
         lift_entity: bool,
         lift_floor: bool,
     }
     impl<'a> LevelSpawner<'a> {
-        fn new(color: Color, spawn: impl FnMut(&mut Commands, &SpawnInfo) + 'a) -> Self {
+        fn for_tile(self, tile: Tile) -> (Tile, Self) {
+            (tile, self)
+        }
+        fn new(spawn: impl FnMut(&mut Commands, &SpawnInfo) + 'a) -> Self {
             Self {
-                color,
                 spawn: Box::new(spawn),
                 skip_floor: false,
                 lift_entity: false,
@@ -462,50 +560,50 @@ fn load_level(
     };
 
     #[allow(clippy::eq_op)]
-    let mut color_spawners: Vec<LevelSpawner> = vec![
+    let mut color_spawners: HashMap<Tile, LevelSpawner> = [
         // White == Floor
-        LevelSpawner::new(Color::linear_rgb(1., 1., 1.), |_commands, _info| {
+        LevelSpawner::new(|_commands, _info| {
             // Nothing additional.
-        }),
+        })
+        .for_tile(Tile::Floor),
         // Light Blue == Elevated Floor
-        LevelSpawner::new(Color::linear_rgb(0.5, 0.75, 1.0), |commands, info| {
+        LevelSpawner::new(|commands, info| {
             spawn_cube(commands, info.pos + Vec3::Y, common.material_gray.clone());
-        }),
+        })
+        .for_tile(Tile::ElevatedFloor),
         // Lighter Blue == Ramp
-        LevelSpawner::new(
-            Color::linear_rgb(186. / 255., 221. / 255., 1.),
-            |commands, info| {
-                let facing = Vec3::X;
+        LevelSpawner::new(|commands, info| {
+            let facing = Vec3::X;
 
-                commands.spawn((
-                    level_tag.clone(),
-                    Mesh3d(common.mesh_cube.clone()),
-                    MeshMaterial3d(common.material_gray.clone()),
-                    Transform::from_translation(info.pos - facing * 0.5 + Vec3::Y * 0.5)
-                        .looking_to(facing + Vec3::Y, Vec3::Y)
-                        .with_scale(Vec3::new(1.0, 2.0f32.sqrt(), 2.0f32.sqrt())),
-                    RigidBody::Static,
-                    Collider::cuboid(1., 1., 1.),
-                ));
-            },
-        ),
+            commands.spawn((
+                level_tag.clone(),
+                Mesh3d(common.mesh_cube.clone()),
+                MeshMaterial3d(common.material_gray.clone()),
+                Transform::from_translation(info.pos - facing * 0.5 + Vec3::Y * 0.5)
+                    .looking_to(facing + Vec3::Y, Vec3::Y)
+                    .with_scale(Vec3::new(1.0, 2.0f32.sqrt(), 2.0f32.sqrt())),
+                RigidBody::Static,
+                Collider::cuboid(1., 1., 1.),
+            ));
+        })
+        .for_tile(Tile::Ramp),
         // Light Grey == Connecting Hallway Floor
-        LevelSpawner::new(Color::linear_rgb(0.75, 0.75, 0.75), |_commands, _info| {
+        LevelSpawner::new(|_commands, _info| {
             // Spawned later
-        }),
+        })
+        .for_tile(Tile::Hallway(0)),
         // Light Medium Grey == Connecting Hallway Floor
-        LevelSpawner::new(
-            Color::linear_rgb(0.625, 0.625, 0.625),
-            |_commands, _info| {
-                // Spawned later
-            },
-        ),
-        // Medium Grey == Connecting Hallway Floor
-        LevelSpawner::new(Color::linear_rgb(0.5, 0.5, 0.5), |_commands, _info| {
+        LevelSpawner::new(|_commands, _info| {
             // Spawned later
-        }),
+        })
+        .for_tile(Tile::Hallway(1)),
+        // Medium Grey == Connecting Hallway Floor
+        LevelSpawner::new(|_commands, _info| {
+            // Spawned later
+        })
+        .for_tile(Tile::Hallway(2)),
         // Black == Wall
-        LevelSpawner::new(Color::linear_rgb(0., 0., 0.), |commands, info| {
+        LevelSpawner::new(|commands, info| {
             spawn_cube(
                 commands,
                 info.pos + Vec3::Y,
@@ -516,9 +614,10 @@ fn load_level(
                 info.pos + Vec3::Y * 2.,
                 common.material_invisible.clone(),
             );
-        }),
+        })
+        .for_tile(Tile::Wall),
         // Green == Compute
-        LevelSpawner::new(Color::linear_rgb(0., 1., 0.), |commands, info| {
+        LevelSpawner::new(|commands, info| {
             commands.spawn((
                 level_tag.clone(),
                 Mesh3d(common.mesh_cube.clone()),
@@ -529,14 +628,16 @@ fn load_level(
                 Mainframe { active: false },
             ));
         })
-        .lift_floor(),
+        .lift_floor()
+        .for_tile(Tile::ComputerMainframe),
         // Light Blue == Outside
-        LevelSpawner::new(Color::linear_rgb(0.5, 0.5, 0.835), |_commands, _info| {
+        LevelSpawner::new(|_commands, _info| {
             // Nothing at all
         })
-        .skip_floor(),
-        // Blue == Robot
-        LevelSpawner::new(Color::linear_rgb(0., 0., 1.), |commands, info| {
+        .skip_floor()
+        .for_tile(Tile::Outside),
+        // Blue == Zappy
+        LevelSpawner::new(|commands, info| {
             commands.spawn((
                 level_tag.clone(),
                 Mesh3d(common.mesh_sphere.clone()),
@@ -546,9 +647,10 @@ fn load_level(
                 Collider::cuboid(1., 1., 1.),
                 EvilRobot {},
             ));
-        }),
+        })
+        .for_tile(Tile::Zappy),
         // Dark Grey == Well
-        LevelSpawner::new(Color::linear_rgb(0.25, 0.25, 0.25), |commands, info| {
+        LevelSpawner::new(|commands, info| {
             commands.spawn((
                 level_tag.clone(),
                 Mesh3d(common.mesh_sphere.clone()),
@@ -558,9 +660,10 @@ fn load_level(
                 Well,
             ));
         })
-        .skip_floor(),
+        .skip_floor()
+        .for_tile(Tile::Well),
         // Purple == Door
-        LevelSpawner::new(Color::linear_rgb(0.5, 0.0, 1.0), |commands, info| {
+        LevelSpawner::new(|commands, info| {
             // visual "wall" blocks above door
             commands.spawn((
                 level_tag.clone(),
@@ -582,9 +685,10 @@ fn load_level(
                 Collider::cuboid(1.0, 1.0, 1.0),
             ));
         })
-        .lift_floor(),
-        // Orange == Power Cell
-        LevelSpawner::new(Color::linear_rgb(1., 0.5, 0.0), |commands, info| {
+        .lift_floor()
+        .for_tile(Tile::Door),
+        // Orange == Crate
+        LevelSpawner::new(|commands, info| {
             commands.spawn((
                 level_tag.clone(),
                 Mesh3d(common.mesh_cube.clone()),
@@ -595,9 +699,10 @@ fn load_level(
                 Draggable::default(),
             ));
         })
-        .lift_floor(),
+        .lift_floor()
+        .for_tile(Tile::Crate),
         // Pink == Laser Source
-        LevelSpawner::new(Color::linear_rgb(1., 0.5, 0.5), |commands, info| {
+        LevelSpawner::new(|commands, info| {
             // Wall
             spawn_cube(
                 commands,
@@ -633,9 +738,10 @@ fn load_level(
                 }
             }
         })
-        .lift_floor(),
+        .lift_floor()
+        .for_tile(Tile::LaserSource),
         // Red == Player
-        LevelSpawner::new(Color::linear_rgb(1., 0., 0.), |commands, info| {
+        LevelSpawner::new(|commands, info| {
             if !should_spawn_player {
                 return;
             }
@@ -649,9 +755,10 @@ fn load_level(
                 Player {},
                 GravityScale(2.),
             ));
-        }),
+        })
+        .for_tile(Tile::PlayerStart),
         // Yellow == Save/Spawn Point
-        LevelSpawner::new(Color::linear_rgb(1., 1., 0.), |commands, info| {
+        LevelSpawner::new(|commands, info| {
             commands.spawn((
                 level_tag.clone(),
                 Mesh3d(common.mesh_cube.clone()),
@@ -661,17 +768,19 @@ fn load_level(
                 SpawnPoint {},
             ));
         })
-        .lift_floor(),
+        .lift_floor()
+        .for_tile(Tile::SpawnPoint),
         // Magenta == Zipline
-        LevelSpawner::new(Color::linear_rgb(1., 0., 1.), |_commands, info| {
+        LevelSpawner::new(|_commands, info| {
             zipline_positions
                 .lock()
                 .unwrap()
                 .insert(info.grid, info.pos + Vec3::Y * 0.5);
         })
-        .lift_floor(),
+        .lift_floor()
+        .for_tile(Tile::Zipline),
         // Dark Magenta == Zipline without floor
-        LevelSpawner::new(Color::linear_rgb(0.5, 0., 0.5), |commands, info| {
+        LevelSpawner::new(|commands, info| {
             zipline_positions
                 .lock()
                 .unwrap()
@@ -687,101 +796,104 @@ fn load_level(
             ));
         })
         .skip_floor()
-        .lift_entity(),
+        .lift_entity()
+        .for_tile(Tile::ZiplineOverWell),
         // Brown == Chain
-        LevelSpawner::new(
-            Color::linear_rgb(159.0 / 255.0, 113.0 / 255.0, 62.0 / 255.0),
-            |_commands, info| {
-                chains.lock().unwrap().insert(info.grid, info.pos + Vec3::Y);
-            },
-        ),
+        LevelSpawner::new(|_commands, info| {
+            chains.lock().unwrap().insert(info.grid, info.pos + Vec3::Y);
+        })
+        .for_tile(Tile::Chain),
         // Pale Purple == Electricity Outlet
-        LevelSpawner::new(
-            Color::linear_rgb(158.0 / 255.0, 86.0 / 255.0, 158.0 / 255.0),
-            |commands, info| {
-                commands.spawn((
-                    level_tag.clone(),
-                    Mesh3d(common.mesh_cube.clone()),
-                    MeshMaterial3d(common.material_outlet.clone()),
-                    Transform::from_translation(info.pos + Vec3::Y * 0.5)
-                        .with_scale(Vec3::new(0.8, 0.1, 0.8)),
-                    RigidBody::Static,
-                    Collider::cuboid(1.0, 1.0, 1.0),
-                    Outlet { plug: None },
-                ));
-            },
-        ),
+        LevelSpawner::new(|commands, info| {
+            commands.spawn((
+                level_tag.clone(),
+                Mesh3d(common.mesh_cube.clone()),
+                MeshMaterial3d(common.material_outlet.clone()),
+                Transform::from_translation(info.pos + Vec3::Y * 0.5)
+                    .with_scale(Vec3::new(0.8, 0.1, 0.8)),
+                RigidBody::Static,
+                Collider::cuboid(1.0, 1.0, 1.0),
+                Outlet { plug: None },
+            ));
+        })
+        .for_tile(Tile::Outlet),
         // Light Teal == Power Source
-        LevelSpawner::new(
-            Color::linear_rgb(128. / 255., 255. / 255., 221. / 255.),
-            |commands, info| {
-                commands.spawn((
-                    level_tag.clone(),
-                    Mesh3d(common.mesh_cylinder.clone()),
-                    MeshMaterial3d(common.material_electricity.clone()),
-                    Transform::from_translation(info.pos + Vec3::Y * 0.5)
-                        .with_scale(Vec3::new(0.8, 1.5, 0.8)),
-                    RigidBody::Static,
-                    Collider::cylinder(0.5, 1.0),
-                    Outlet { plug: None },
-                ));
-            },
-        ),
-    ];
+        LevelSpawner::new(|commands, info| {
+            commands.spawn((
+                level_tag.clone(),
+                Mesh3d(common.mesh_cylinder.clone()),
+                MeshMaterial3d(common.material_electricity.clone()),
+                Transform::from_translation(info.pos + Vec3::Y * 0.5)
+                    .with_scale(Vec3::new(0.8, 1.5, 0.8)),
+                RigidBody::Static,
+                Collider::cylinder(0.5, 1.0),
+                Outlet { plug: None },
+            ));
+        })
+        .for_tile(Tile::PowerSource),
+    ]
+    .into_iter()
+    .collect();
 
+    let mut tile_grid: HashMap<IVec2, Tile> = HashMap::new();
     for x in 0..image.width() {
         for z in 0..image.height() {
-            let color = image.get_color_at(x, z).expect("must be able to get color");
+            let color = image
+                .get_color_at(x, z)
+                .expect("must be able to get color in image");
+            let tile = color_to_tile(&color);
+            tile_grid.insert(
+                IVec2::new(x as i32, z as i32),
+                tile.unwrap_or(Tile::Outside),
+            );
+        }
+    }
 
-            let color_distance_scale = 10_000;
+    for (grid_position, grid_tile) in tile_grid.iter() {
+        let Some(candidate) = color_spawners.get_mut(grid_tile) else {
+            eprintln!("No spawner for tile {:?}", grid_tile);
+            continue;
+        };
 
-            let (color_distance, candidate) = color_spawners
-                .iter_mut()
-                .map(|candidate| (candidate.color.distance(&color), candidate))
-                .min_by_key(|a| (a.0 * color_distance_scale as f32) as i64)
-                .unwrap();
+        let x = grid_position.x;
+        let z = grid_position.y;
 
-            if color_distance > 0.1 {
-                eprintln!("unknown color {:?}", color);
-                continue;
-            }
+        let mut info = SpawnInfo {
+            pos: Vec3::new(x as f32, 0.0, z as f32) + shift,
+            grid: IVec2::new(x, z),
+        };
 
-            let mut info = SpawnInfo {
-                pos: Vec3::new(x as f32, 0.0, z as f32) + shift,
-                grid: IVec2::new(x as i32, z as i32),
-            };
-
-            let mut floor_height = 0.0;
-            let mut entity_height = 0.0;
-            if candidate.lift_entity || candidate.lift_floor {
-                for dx in -1..=1 {
-                    for dz in -1..=1 {
-                        if is_raised(info.grid + IVec2::new(dx, dz)) {
-                            entity_height = 1.0;
-                            if dx == 0 || dz == 0 {
-                                floor_height = 1.0;
-                            }
+        let mut floor_height = 0.0;
+        let mut entity_height = 0.0;
+        if candidate.lift_entity || candidate.lift_floor {
+            for dx in -1..=1 {
+                for dz in -1..=1 {
+                    if is_raised(info.grid + IVec2::new(dx, dz)) {
+                        entity_height = 1.0;
+                        if dx == 0 || dz == 0 {
+                            floor_height = 1.0;
                         }
                     }
                 }
             }
-
-            if !candidate.skip_floor {
-                if candidate.lift_floor {
-                    info.pos += Vec3::Y * floor_height;
-                }
-                spawn_floor(commands, info.pos);
-                if candidate.lift_floor {
-                    info.pos -= Vec3::Y * floor_height;
-                }
-            }
-
-            if candidate.lift_entity {
-                info.pos += Vec3::Y * entity_height;
-            }
-
-            (candidate.spawn)(commands, &info);
         }
+
+        if !candidate.skip_floor {
+            if candidate.lift_floor {
+                info.pos += Vec3::Y * floor_height;
+            }
+            spawn_floor(commands, info.pos);
+            if candidate.lift_floor {
+                info.pos -= Vec3::Y * floor_height;
+            }
+        }
+
+        if candidate.lift_entity {
+            info.pos += Vec3::Y * entity_height;
+        }
+
+        (candidate.spawn)(commands, &info);
+        // }
     }
 
     std::mem::drop(color_spawners);

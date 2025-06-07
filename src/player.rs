@@ -61,7 +61,7 @@ pub fn control_player(
     let desired_velocity = (keydir.x * right + keydir.y * forward) * target_speed;
 
     let damp_strength = 0.4;
-    let accel_strength = 3.0;
+    let accel_strength = 6.0;
 
     for (_player, mut player_force, player_velocity, mut recent_velocity) in player.iter_mut() {
         let difference: Vec3 = desired_velocity - **player_velocity;
