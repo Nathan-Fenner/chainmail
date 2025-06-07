@@ -15,6 +15,7 @@ pub struct Common {
     pub material_laser: Handle<StandardMaterial>,
     pub material_invisible: Handle<StandardMaterial>,
     pub material_fog: Handle<StandardMaterial>,
+    pub material_outlet: Handle<StandardMaterial>,
 
     pub image_e: Handle<Image>,
 
@@ -92,6 +93,13 @@ pub fn setup_common(
             reflectance: 0.0,
             perceptual_roughness: 1.0,
 
+            ..default()
+        }),
+        material_outlet: materials.add(StandardMaterial {
+            base_color: Color::linear_rgb(0.9, 0.8, 0.2),
+            perceptual_roughness: 1.0,
+            base_color_texture: Some(asset_server.load("outlet.png")),
+            alpha_mode: AlphaMode::Mask(0.5),
             ..default()
         }),
         material_icon_e: materials.add(StandardMaterial {

@@ -7,9 +7,19 @@ use bevy::{
 };
 
 use crate::{
-    chain::ChainLink, common::Common, door::Door, draggable::Draggable, evil_robot::EvilRobot,
-    fog::DoesNotClearFog, laser::Laser, mainframe::Mainframe, player::Player,
-    spawn_point::SpawnPoint, well::Well, zipline::Zipline,
+    chain::ChainLink,
+    common::Common,
+    door::Door,
+    draggable::Draggable,
+    electricity::{Outlet, Plug},
+    evil_robot::EvilRobot,
+    fog::DoesNotClearFog,
+    laser::Laser,
+    mainframe::Mainframe,
+    player::Player,
+    spawn_point::SpawnPoint,
+    well::Well,
+    zipline::Zipline,
 };
 
 pub struct LevelPlugin;
@@ -684,6 +694,22 @@ fn load_level(
                 chains.lock().unwrap().insert(info.grid, info.pos + Vec3::Y);
             },
         ),
+        // Pale Purple == Electricity Outlet
+        LevelSpawner::new(
+            Color::linear_rgb(158.0 / 255.0, 86.0 / 255.0, 158.0 / 255.0),
+            |commands, info| {
+                commands.spawn((
+                    level_tag.clone(),
+                    Mesh3d(common.mesh_cube.clone()),
+                    MeshMaterial3d(common.material_outlet.clone()),
+                    Transform::from_translation(info.pos + Vec3::Y * 0.5)
+                        .with_scale(Vec3::new(0.8, 0.1, 0.8)),
+                    RigidBody::Static,
+                    Collider::cuboid(1.0, 1.0, 1.0),
+                    Outlet { plug: None },
+                ));
+            },
+        ),
     ];
 
     for x in 0..image.width() {
@@ -904,6 +930,7 @@ fn spawn_chains(
                 Mesh3d(common.mesh_cube.clone()),
                 Transform::from_translation(*chain_pos).with_scale(Vec3::splat(0.6)),
                 MeshMaterial3d(common.material_orange.clone()),
+                Plug::default(),
             ));
         }
 
@@ -929,6 +956,7 @@ fn spawn_chains(
                 let delta = chain_positions[&other] - chain_positions[chain_ball];
 
                 commands.spawn((
+                    level_tag.clone(),
                     SphericalJoint::new(chain_entities[chain_ball], chain_entities[&other])
                         .with_local_anchor_1(delta / 2.0)
                         .with_local_anchor_2(-delta / 2.0)
