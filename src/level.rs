@@ -59,7 +59,14 @@ impl Plugin for LevelPlugin {
 }
 
 fn setup_levels_system(mut commands: Commands, asset_server: Res<AssetServer>) {
-    let map_names = ["map1.png", "rails_map.png"];
+    let map_names = [
+        "level_1.png",
+        "level_2.png",
+        "level_3.png",
+        "level_4.png",
+        "level_5.png",
+        "rails_map.png",
+    ];
 
     commands.insert_resource(Levels {
         levels: map_names
@@ -149,7 +156,7 @@ fn load_level_system(
     // If there is no player, load the first level.
 
     if !*has_loaded_player {
-        let first_level = LevelName::from_string("map1.png".to_string());
+        let first_level = LevelName::from_string("level_1.png".to_string());
         load_level(
             Vec3::ZERO,
             LevelTag {
