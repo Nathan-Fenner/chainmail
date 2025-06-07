@@ -461,6 +461,7 @@ fn load_level(
             || c.distance(&Color::linear_rgb(0.5, 0.75, 1.0)) < 0.1
     };
 
+    #[allow(clippy::eq_op)]
     let mut color_spawners: Vec<LevelSpawner> = vec![
         // White == Floor
         LevelSpawner::new(Color::linear_rgb(1., 1., 1.), |_commands, _info| {
@@ -706,6 +707,22 @@ fn load_level(
                         .with_scale(Vec3::new(0.8, 0.1, 0.8)),
                     RigidBody::Static,
                     Collider::cuboid(1.0, 1.0, 1.0),
+                    Outlet { plug: None },
+                ));
+            },
+        ),
+        // Light Teal == Power Source
+        LevelSpawner::new(
+            Color::linear_rgb(128. / 255., 255. / 255., 221. / 255.),
+            |commands, info| {
+                commands.spawn((
+                    level_tag.clone(),
+                    Mesh3d(common.mesh_cylinder.clone()),
+                    MeshMaterial3d(common.material_electricity.clone()),
+                    Transform::from_translation(info.pos + Vec3::Y * 0.5)
+                        .with_scale(Vec3::new(0.8, 1.5, 0.8)),
+                    RigidBody::Static,
+                    Collider::cylinder(0.5, 1.0),
                     Outlet { plug: None },
                 ));
             },
