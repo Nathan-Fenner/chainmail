@@ -2,6 +2,7 @@ pub mod chain;
 pub mod common;
 pub mod door;
 pub mod draggable;
+pub mod electricity;
 pub mod evil_robot;
 pub mod fog;
 pub mod interactible;
@@ -34,8 +35,8 @@ use spawn_point::SpawnPointPlugin;
 use well::WellPlugin;
 
 use crate::{
-    chain::ChainPlugin, fog::FogPlugin, laser::LaserPlugin, level::LevelPlugin,
-    zipline::ZiplinePlugin,
+    chain::ChainPlugin, electricity::ElectricityPlugin, fog::FogPlugin, laser::LaserPlugin,
+    level::LevelPlugin, zipline::ZiplinePlugin,
 };
 
 fn main() {
@@ -57,7 +58,7 @@ fn main() {
             DoorPlugin,
             FogPlugin,
         ))
-        .add_plugins(ChainPlugin)
+        .add_plugins((ChainPlugin, ElectricityPlugin))
         .add_systems(Startup, setup.after(setup_common))
         .add_systems(Update, unlock_doors_when_all_mainframes_active)
         .run();

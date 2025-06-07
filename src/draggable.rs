@@ -7,7 +7,7 @@ use crate::{
 };
 
 const PICK_RADIUS: f32 = 1.9;
-const DROP_RADIUS: f32 = 3.5;
+const DROP_RADIUS: f32 = 3.0;
 
 #[derive(Default, Component)]
 #[require(Interactible = Interactible::radius(PICK_RADIUS))]
@@ -81,14 +81,14 @@ pub fn run_draggable_system(
 
         let mut delta = target_position - draggable_transform.translation;
 
-        if delta.length() > 2.5 {
+        if delta.length() >= DROP_RADIUS - target_distance {
             // If too far away, snap the connection.
             draggable.is_dragging = false;
             continue;
         }
 
         // The strength of the pulling/pushing force, at the max distance.
-        let pull_strength = 15.;
+        let pull_strength = 10.;
         // The strength of XZ velocity damping.
         let damp_strength = 0.5;
         // The distance at which pulling strength reaches 100%.
