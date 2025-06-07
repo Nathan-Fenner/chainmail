@@ -11,7 +11,7 @@ use crate::{
     common::Common,
     door::Door,
     draggable::Draggable,
-    electricity::{Outlet, Plug},
+    electricity::{Outlet, Plug, PowerSource, Wire},
     evil_robot::EvilRobot,
     fog::DoesNotClearFog,
     laser::Laser,
@@ -408,12 +408,13 @@ enum Tile {
     Chain,
     Outlet,
     PowerSource,
+    FloorWire,
 }
 
 /// Converts from the color of the pixel to the type of tile.
 fn color_to_tile(color: &Color) -> Option<Tile> {
     #[allow(clippy::eq_op)]
-    static MAPPING: [(Color, Tile); 21] = [
+    static MAPPING: [(Color, Tile); 22] = [
         // White == Floor
         (Color::linear_rgb(1., 1., 1.), Tile::Floor),
         // Light Blue == Elevated Floor
@@ -465,6 +466,11 @@ fn color_to_tile(color: &Color) -> Option<Tile> {
         (
             Color::linear_rgb(128. / 255., 255. / 255., 221. / 255.),
             Tile::PowerSource,
+        ),
+        // Dark Teal == Floor Wire
+        (
+            Color::linear_rgb(66.0 / 255.0, 130.0 / 255.0, 111.0 / 255.0),
+            Tile::FloorWire,
         ),
     ];
 
@@ -707,6 +713,7 @@ fn load_level(
                 level_tag.clone(),
                 Mesh3d(common.mesh_cube.clone()),
                 MeshMaterial3d(common.material_orange.clone()),
+                ColliderDensity(0.2),
                 Transform::from_translation(info.pos + Vec3::Y).with_scale(Vec3::splat(0.8)),
                 RigidBody::Dynamic,
                 Collider::cuboid(1.0, 1.0, 1.0),
@@ -823,7 +830,7 @@ fn load_level(
                 level_tag.clone(),
                 Mesh3d(common.mesh_cube.clone()),
                 MeshMaterial3d(common.material_outlet.clone()),
-                Transform::from_translation(info.pos + Vec3::Y * 0.5)
+                Transform::from_translation(info.pos + Vec3::Y * 0.6)
                     .with_scale(Vec3::new(0.8, 0.1, 0.8)),
                 RigidBody::Static,
                 Collider::cuboid(1.0, 1.0, 1.0),
@@ -841,10 +848,45 @@ fn load_level(
                     .with_scale(Vec3::new(0.8, 1.5, 0.8)),
                 RigidBody::Static,
                 Collider::cylinder(0.5, 1.0),
-                Outlet { plug: None },
+                PowerSource,
             ));
         })
         .for_tile(Tile::PowerSource),
+        LevelSpawner::new(|commands, info| {
+            fn is_electrical(tile: &Tile) -> bool {
+                matches!(
+                    tile,
+                    Tile::FloorWire | Tile::PowerSource | Tile::Outlet | Tile::ComputerMainframe
+                )
+            }
+
+            let width = 0.3;
+            let extent = 0.7;
+
+            for (dx, dz) in [(-1, 0), (1, 0), (0, -1), (0, 1)] {
+                let neighbor = &tile_grid[&(info.grid + IVec2::new(dx, dz))];
+                if is_electrical(neighbor) {
+                    let center = info.pos + Vec3::Y * 0.5;
+                    let shift = Vec3::new(dx as f32, 0., dz as f32) * extent / 2.;
+
+                    let mut scale = Vec3::new(width, 0.2, width);
+                    if dx != 0 {
+                        scale.x = extent + width;
+                    } else {
+                        scale.z = extent + width;
+                    }
+
+                    commands.spawn((
+                        level_tag.clone(),
+                        Mesh3d(common.mesh_cube.clone()),
+                        MeshMaterial3d(common.material_electricity.clone()),
+                        Transform::from_translation(center + shift).with_scale(scale),
+                        Wire,
+                    ));
+                }
+            }
+        })
+        .for_tile(Tile::FloorWire),
     ]
     .into_iter()
     .collect();
@@ -1025,6 +1067,9 @@ fn spawn_chains(
     chain_positions: &HashMap<IVec2, Vec3>,
 ) {
     let mut chain_entities: HashMap<IVec2, Entity> = default();
+
+    let mut chain_ends: Vec<(Entity, Vec3)> = Vec::new();
+
     for (chain_ball, chain_pos) in chain_positions.iter() {
         let collision_layer = if (chain_ball.x + chain_ball.y) % 2 == 0 {
             let mut interact = LayerMask::ALL;
@@ -1035,16 +1080,18 @@ fn spawn_chains(
             interact.remove(2);
             CollisionLayers::new(4, interact)
         };
-        let mut chain_spawned = commands.spawn((
-            level_tag.clone(),
-            Mesh3d(common.mesh_small_sphere.clone()),
-            MeshMaterial3d(common.material_dark_gray.clone()),
-            Transform::from_translation(*chain_pos).with_scale(Vec3::splat(0.75)),
-            RigidBody::Dynamic,
-            ColliderDensity(0.1),
-            Collider::sphere(0.5),
-            collision_layer,
-        ));
+        let chain_id = commands
+            .spawn((
+                level_tag.clone(),
+                Mesh3d(common.mesh_small_sphere.clone()),
+                MeshMaterial3d(common.material_dark_gray.clone()),
+                Transform::from_translation(*chain_pos).with_scale(Vec3::splat(0.75)),
+                RigidBody::Dynamic,
+                ColliderDensity(0.1),
+                Collider::sphere(0.5),
+                collision_layer,
+            ))
+            .id();
 
         if [IVec2::X, IVec2::NEG_X, IVec2::Y, IVec2::NEG_Y]
             .into_iter()
@@ -1052,20 +1099,26 @@ fn spawn_chains(
             .count()
             == 1
         {
-            // The ends of the chain are draggable.
-            chain_spawned.insert((
-                Draggable::default(),
-                Collider::cuboid(1., 1., 1.),
-                Mesh3d(common.mesh_cube.clone()),
-                Transform::from_translation(*chain_pos).with_scale(Vec3::splat(0.6)),
-                MeshMaterial3d(common.material_orange.clone()),
-                Plug::default(),
-            ));
+            chain_ends.push((chain_id, *chain_pos));
         }
 
-        let chain_id = chain_spawned.id();
-
         chain_entities.insert(*chain_ball, chain_id);
+    }
+
+    for (end_index, (chain_end, chain_pos)) in chain_ends.iter().enumerate() {
+        let other_end = chain_ends[1 - end_index].0;
+
+        commands.entity(*chain_end).insert((
+            Draggable::default(),
+            Collider::cuboid(1., 1., 1.),
+            Mesh3d(common.mesh_cube.clone()),
+            Transform::from_translation(*chain_pos).with_scale(Vec3::splat(0.6)),
+            MeshMaterial3d(common.material_orange.clone()),
+            Plug {
+                outlet: None,
+                other_end,
+            },
+        ));
     }
 
     for chain_ball in chain_entities.keys() {

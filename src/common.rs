@@ -10,6 +10,7 @@ pub struct Common {
     pub material_gray: Handle<StandardMaterial>,
     pub material_dark_gray: Handle<StandardMaterial>,
     pub material_yellow: Handle<StandardMaterial>,
+    pub material_dark_blue: Handle<StandardMaterial>,
     pub material_orange: Handle<StandardMaterial>,
     pub material_beepboop: Handle<StandardMaterial>,
     pub material_active: Handle<StandardMaterial>,
@@ -62,6 +63,11 @@ pub fn setup_common(
             perceptual_roughness: 1.0,
             ..default()
         }),
+        material_dark_blue: materials.add(StandardMaterial {
+            base_color: Color::linear_rgb(0.0, 0.05, 0.1),
+            perceptual_roughness: 1.0,
+            ..default()
+        }),
         material_orange: materials.add(StandardMaterial {
             base_color: Color::linear_rgb(0.9, 0.4, 0.1),
             perceptual_roughness: 1.0,
@@ -105,7 +111,7 @@ pub fn setup_common(
             ..default()
         }),
         material_outlet: materials.add(StandardMaterial {
-            base_color: Color::linear_rgb(0.9, 0.8, 0.2),
+            base_color: Color::linear_rgb(0.0, 0.05, 0.1),
             perceptual_roughness: 1.0,
             base_color_texture: Some(asset_server.load("outlet.png")),
             alpha_mode: AlphaMode::Mask(0.5),
