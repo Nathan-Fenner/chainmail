@@ -662,18 +662,61 @@ fn load_level(
         .for_tile(Tile::Wall),
         // Green == Compute
         LevelSpawner::new(|commands, info| {
+            // Which way should it face?
+            fn is_floor(t: Tile) -> bool {
+                matches!(
+                    t,
+                    Tile::Floor | Tile::FloorWire | Tile::Outlet | Tile::Zipline
+                )
+            }
+
+            fn is_wall(t: Tile) -> bool {
+                matches!(t, Tile::Wall | Tile::WallWire)
+            }
+
+            let candidates = [IVec2::X, IVec2::Y, IVec2::NEG_X, IVec2::NEG_Y];
+
+            let facing_direction = candidates
+                .iter()
+                .max_by_key(|&direction| {
+                    let mut score = 0;
+                    if is_floor(tile_grid[&(info.grid + direction)]) {
+                        score += 999;
+                    }
+                    if is_wall(tile_grid[&(info.grid - direction)]) {
+                        score += 100;
+                    }
+                    score
+                })
+                .unwrap();
+
             commands.spawn((
                 level_tag.clone(),
-                Mesh3d(common.mesh_cube.clone()),
-                MeshMaterial3d(common.material_gray.clone()),
-                Transform::from_translation(info.pos + Vec3::Y).with_scale(Vec3::new(1., 1.4, 1.)),
+                SceneRoot(common.scene_computer.clone()),
+                Transform::from_translation(info.pos + Vec3::Y * 0.5).looking_to(
+                    Vec3::new(facing_direction.x as f32, 0.0, facing_direction.y as f32),
+                    Vec3::Y,
+                ),
                 RigidBody::Static,
-                Collider::cuboid(1., 1., 1.),
+                Collider::cuboid(1., 1.5, 1.),
                 Mainframe {
                     active: false,
                     has_charge: false,
                 },
             ));
+
+            // commands.spawn((
+            //     level_tag.clone(),
+            //     Mesh3d(common.mesh_cube.clone()),
+            //     // MeshMaterial3d(common.material_gray.clone()),
+            //     Transform::from_translation(info.pos + Vec3::Y).with_scale(Vec3::new(1., 1.4, 1.)),
+            //     RigidBody::Static,
+            //     Collider::cuboid(1., 1., 1.),
+            //     Mainframe {
+            //         active: false,
+            //         has_charge: false,
+            //     },
+            // ));
         })
         .lift_floor()
         .for_tile(Tile::ComputerMainframe),

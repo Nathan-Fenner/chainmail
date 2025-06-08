@@ -1,0 +1,3 @@
+# computer_console.glb
+`computer_console.glb` is a modified version of computer.glb from Kenney's Space Station Kit
+https://kenney.nl/assets/space-station-kit

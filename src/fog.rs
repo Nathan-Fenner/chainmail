@@ -26,11 +26,11 @@ fn spawn_fog_system(mut commands: Commands, common: Res<Common>) {
     for x in 0..FOG_GRID_SIZE {
         for z in 0..FOG_GRID_SIZE {
             commands.spawn((
-                Mesh3d(common.mesh_sphere.clone()),
+                Mesh3d(common.mesh_cube.clone()),
                 MeshMaterial3d(common.material_fog.clone()),
                 Fog { progress: 0.0 },
                 Transform::from_translation(Vec3::new(x as f32, 0.0, z as f32) * GRID_SPACING)
-                    .with_scale(Vec3::splat(1.5)),
+                    .with_scale(Vec3::new(2.3, 14.0, 2.3)),
             ));
         }
     }
@@ -99,6 +99,8 @@ fn clear_fog_system(
             max_scale
         };
 
-        fog.scale = fog.scale.lerp(Vec3::splat(target_scale), 0.2);
+        fog.scale = fog
+            .scale
+            .lerp(Vec3::splat(target_scale) * Vec3::new(1.1, 1.2, 1.1), 0.2);
     }
 }
