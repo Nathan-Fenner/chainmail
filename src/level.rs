@@ -742,10 +742,7 @@ fn load_level(
                 Transform::from_translation(info.pos + Vec3::Y),
                 RigidBody::Static,
                 Collider::cuboid(1., 1., 1.),
-                EvilRobot {
-                    has_charge: false,
-                    active: false,
-                },
+                EvilRobot { has_charge: false },
             ));
         })
         .for_tile(Tile::Zappy),

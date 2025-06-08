@@ -172,19 +172,6 @@ pub fn compute_charge_system(
             .insert(global_to_grid(transform.translation()));
     }
 
-    let mut evil_robots_to_charge: HashMap<IVec2, Mut<EvilRobot>> = HashMap::new();
-
-    for (transform, mut evil_robot) in evil_robots.iter_mut() {
-        if !evil_robot.active {
-            evil_robot.has_charge = false;
-            evil_robots_to_charge.insert(global_to_grid(transform.translation()), evil_robot);
-            continue;
-        }
-        power_grid
-            .active
-            .insert(global_to_grid(transform.translation()));
-    }
-
     let mut wire_grid: HashSet<IVec2> = HashSet::new();
     for wire_transform in wires.iter() {
         wire_grid.insert(global_to_grid(wire_transform.translation()));

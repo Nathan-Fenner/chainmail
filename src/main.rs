@@ -60,7 +60,6 @@ fn main() {
         ))
         .add_plugins((ChainPlugin, ElectricityPlugin))
         .add_systems(Startup, setup.after(setup_common))
-        .add_systems(Update, (update_evil_robot_materials,))
         .run();
 }
 
