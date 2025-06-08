@@ -1180,29 +1180,30 @@ fn spawn_zipline(
 //Flood fill spawn one chain, chain_ball input is the starting position.
 fn spawn_chain<'a>(
     chain_positions: &HashMap<IVec2, Vec3>,
-    visited: &'a HashMap<&IVec2, bool>,
-) -> (Vec<IVec2>, &'a HashMap<&Ivec2, bool>)
+    starting_chain_ball: IVec2,
+    visited: &'a mut HashMap<IVec2, bool>,
+) -> (Vec<IVec2>, &'a HashMap<IVec2, bool>)
 {
     //valid chain dirs
-    let dirs: Vec<Vec<i32>>=vec![
-        vec![0, 1],
-        vec![0, -1],
-        vec![1, 0],
-        vec![-1, 0],
+    let dirs= [
+        ivec2(0, 1),
+        ivec2(0, -1),
+        ivec2(1, 0),
+        ivec2(-1, 0)
     ];
     let chain_list: Vec<IVec2>=Vec::new();
     let mut chain_q=VecDeque::new();
-    chain_q.push_back(chain_positions.keys().next());
+    chain_q.push_back(starting_chain_ball);
 
     //bfs
     while let Some(curr_chain_ball) = chain_q.pop_front(){
         for d in dirs{
-            let next_chain_key=&ivec2(curr_chain_ball.x+d[0], (curr_chain_ball.y+d[1])); //potential same chain
-            if chain_positions.contains_key(next_chain_key) && !visited.contains_key(next_chain_key){ //validate
-                chain_q.push_back(Some(next_chain_key));
+            let next_chain_key=ivec2(curr_chain_ball.x+d[0], curr_chain_ball.y+d[1]); //potential same chain
+            if chain_positions.contains_key(&next_chain_key) && !visited.contains_key(&next_chain_key){ //validate
+                chain_q.push_back(next_chain_key);
             };
         }
-        visited.insert(curr_chain_ball.unwrap(), true);
+        visited.insert(curr_chain_ball, true);
     }
 
     return (chain_list, visited)
