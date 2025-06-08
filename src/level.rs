@@ -512,6 +512,7 @@ fn is_electrical(tile: &Tile) -> bool {
             | Tile::PowerSource
             | Tile::Outlet
             | Tile::ComputerMainframe
+            | Tile::Door
     )
 }
 
@@ -763,7 +764,11 @@ fn load_level(
                 Transform::from_translation(info.pos + Vec3::Y),
                 RigidBody::Static,
                 Collider::cuboid(1.0, 1.0, 1.0),
-                Door,
+                Door {
+                    open_at: info.pos + Vec3::Y * 0.1,
+                    closed_at: info.pos + Vec3::Y,
+                },
+                Wire,
             ));
 
             // invisible blocker above that (like black wall)

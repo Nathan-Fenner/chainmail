@@ -131,8 +131,6 @@ pub struct PowerSource;
 #[derive(Component)]
 pub struct Wire;
 
-pub struct IsCharged;
-
 #[derive(Resource)]
 /// It's a pun, get it?
 pub struct PowerGrid {

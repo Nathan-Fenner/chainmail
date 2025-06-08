@@ -29,7 +29,7 @@ use door::DoorPlugin;
 use draggable::DraggablePlugin;
 use evil_robot::EvilRobotPlugin;
 use interactible::InteractiblePlugin;
-use mainframe::{MainframePlugin, unlock_doors_when_all_mainframes_active};
+use mainframe::MainframePlugin;
 use player::{PlayerCamera, PlayerPlugin};
 use spawn_point::SpawnPointPlugin;
 use well::WellPlugin;
@@ -60,7 +60,6 @@ fn main() {
         ))
         .add_plugins((ChainPlugin, ElectricityPlugin))
         .add_systems(Startup, setup.after(setup_common))
-        .add_systems(Update, unlock_doors_when_all_mainframes_active)
         .run();
 }
 

@@ -1,34 +1,35 @@
 use bevy::prelude::*;
 
-#[derive(Component)]
-pub struct Door;
+use crate::electricity::PowerGrid;
 
 #[derive(Component)]
-pub struct DoorTrigger;
+pub struct Door {
+    pub open_at: Vec3,
+    pub closed_at: Vec3,
+}
 
 pub struct DoorPlugin;
 
 impl Plugin for DoorPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Update, detect_player_entering_door);
+        app.add_systems(
+            FixedUpdate,
+            door_open_system.after(crate::electricity::compute_charge_system),
+        );
     }
 }
 
-fn detect_player_entering_door(
-    player_query: Query<&Transform, With<crate::player::Player>>,
-    trigger_query: Query<&Transform, With<DoorTrigger>>,
-) {
-    let Ok(player_transform) = player_query.single() else {
-        return;
-    };
+fn door_open_system(mut doors: Query<(&mut Transform, &mut Door)>, power_grid: Res<PowerGrid>) {
+    for (mut door_transform, door) in doors.iter_mut() {
+        let grid = door_transform.translation.xz().round().as_ivec2();
+        let is_open = power_grid.active.contains(&grid);
 
-    for trigger_transform in trigger_query.iter() {
-        let distance = player_transform
-            .translation
-            .distance(trigger_transform.translation);
-        if distance < 1.5 {
-            // info!("Player entered the door zone!");
-            // Insert win condition logic, scene transition, etc.
-        }
+        let target_translation = if is_open {
+            door.open_at
+        } else {
+            door.closed_at
+        };
+
+        door_transform.translation = door_transform.translation.lerp(target_translation, 0.1);
     }
 }
