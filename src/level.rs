@@ -158,7 +158,7 @@ fn load_level_system(
     // If there is no player, load the first level.
 
     if !*has_loaded_player {
-        let first_level = LevelName::from_string("level_7.png".to_string());
+        let first_level = LevelName::from_string("level_1.png".to_string());
         load_level(
             Vec3::ZERO,
             LevelTag {
