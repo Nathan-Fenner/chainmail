@@ -1,4 +1,5 @@
 use std::sync::Mutex;
+use std::collections::VecDeque;
 
 use avian3d::prelude::*;
 use bevy::{
@@ -1174,6 +1175,37 @@ fn spawn_zipline(
             closest_index: 0,
         },
     ));
+}
+
+//Flood fill spawn one chain, chain_ball input is the starting position.
+fn spawn_chain<'a>(
+    chain_positions: &HashMap<IVec2, Vec3>,
+    visited: &'a HashMap<&IVec2, bool>,
+) -> (Vec<IVec2>, &'a HashMap<&Ivec2, bool>)
+{
+    //valid chain dirs
+    let dirs: Vec<Vec<i32>>=vec![
+        vec![0, 1],
+        vec![0, -1],
+        vec![1, 0],
+        vec![-1, 0],
+    ];
+    let chain_list: Vec<IVec2>=Vec::new();
+    let mut chain_q=VecDeque::new();
+    chain_q.push_back(chain_positions.keys().next());
+
+    //bfs
+    while let Some(curr_chain_ball) = chain_q.pop_front(){
+        for d in dirs{
+            let next_chain_key=&ivec2(curr_chain_ball.x+d[0], (curr_chain_ball.y+d[1])); //potential same chain
+            if chain_positions.contains_key(next_chain_key) && !visited.contains_key(next_chain_key){ //validate
+                chain_q.push_back(Some(next_chain_key));
+            };
+        }
+        visited.insert(curr_chain_ball.unwrap(), true);
+    }
+
+    return (chain_list, visited)
 }
 
 fn spawn_chains(
