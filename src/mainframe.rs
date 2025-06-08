@@ -20,20 +20,49 @@ fn mainframe_point_light() -> PointLight {
 pub struct Mainframe {
     /// Whether the player has activate the mainframe.
     pub active: bool,
+    pub has_charge: bool,
 }
 
 pub struct MainframePlugin;
 
 impl Plugin for MainframePlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Update, (activate_computer_system, recolor_computer).chain());
+        app.add_systems(
+            Update,
+            (
+                set_mainframe_icon_system.after(crate::electricity::compute_charge_system),
+                activate_computer_system,
+                recolor_computer,
+            )
+                .chain(),
+        );
     }
 }
 
-pub fn activate_computer_system(mut mainframe: Query<(&mut Mainframe, &mut Activated)>) {
-    for (mut mainframe, mut activated) in mainframe.iter_mut() {
-        if activated.take_activated() {
+pub fn set_mainframe_icon_system(
+    mut mainframe: Query<(&mut Interactible, &Mainframe)>,
+    common: Res<Common>,
+) {
+    for (mut interactible, mainframe) in mainframe.iter_mut() {
+        let expected_icon = if mainframe.has_charge {
+            &common.material_icon_e
+        } else {
+            &common.material_icon_low_power
+        };
+        if interactible.icon.as_ref() != Some(expected_icon) {
+            interactible.icon = Some(expected_icon.clone());
+        }
+    }
+}
+
+pub fn activate_computer_system(
+    mut commands: Commands,
+    mut mainframe: Query<(Entity, &mut Mainframe, &mut Activated)>,
+) {
+    for (entity, mut mainframe, mut activated) in mainframe.iter_mut() {
+        if activated.take_activated() && mainframe.has_charge {
             mainframe.active = !mainframe.active;
+            commands.entity(entity).remove::<Interactible>();
         }
     }
 }

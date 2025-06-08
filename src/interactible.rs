@@ -11,6 +11,8 @@ use crate::{
 pub struct Interactible {
     pub radius: f32,
     pub priority: i32,
+
+    pub icon: Option<Handle<StandardMaterial>>,
 }
 
 impl Interactible {
@@ -19,11 +21,19 @@ impl Interactible {
         Self {
             radius,
             priority: 0,
+            icon: None,
         }
     }
     /// Update the priority of the input.
     pub fn with_priority(self, priority: i32) -> Self {
         Self { priority, ..self }
+    }
+    /// Sets the icon for this interactible.
+    pub fn with_icon(self, icon: Handle<StandardMaterial>) -> Self {
+        Self {
+            icon: Some(icon),
+            ..self
+        }
     }
 }
 
@@ -51,6 +61,7 @@ impl Plugin for InteractiblePlugin {
             entity: None,
             size: 1.,
             velocity: 0.,
+            icon: None,
         })
         .add_systems(Startup, spawn_interactible_dot_system.after(setup_common))
         .add_systems(
@@ -86,6 +97,7 @@ pub struct NearestInteractible {
     entity: Option<Entity>,
     size: f32,
     velocity: f32,
+    icon: Option<Handle<StandardMaterial>>,
 }
 
 /// Sets `NearestInteractible` to the entity closest to the player.
@@ -136,6 +148,8 @@ fn set_nearest_interactible_system(
         nearest_interactible.entity = found_nearest;
         nearest_interactible.size = 0.5;
         nearest_interactible.velocity = 0.0;
+        nearest_interactible.icon = found_nearest
+            .and_then(|found_nearest| interactibles.get(found_nearest).unwrap().2.icon.clone());
     }
 }
 
@@ -144,11 +158,16 @@ fn visualize_interactible_system(
     mut nearest_state: ResMut<NearestInteractible>,
     global_transform: Query<&GlobalTransform>,
     mut dot_transform: Query<&mut Transform>,
+    mut dot_material: Query<&mut MeshMaterial3d<StandardMaterial>>,
 
     the_dot: Res<InteractibleDot>,
     camera: Query<&GlobalTransform, With<PlayerCamera>>,
+    common: Res<Common>,
 ) {
     let Ok(mut dot_transform) = dot_transform.get_mut(the_dot.dot_entity) else {
+        return;
+    };
+    let Ok(mut dot_material) = dot_material.get_mut(the_dot.dot_entity) else {
         return;
     };
 
@@ -171,6 +190,15 @@ fn visualize_interactible_system(
     nearest_state.size += nearest_state.velocity * delta;
     nearest_state.velocity *= (0.05f32).powf(delta);
     nearest_state.velocity += (1.0 - nearest_state.size) * 100. * delta;
+
+    let expected_material = nearest_state
+        .icon
+        .as_ref()
+        .unwrap_or(&common.material_icon_e);
+
+    if &dot_material.0 != expected_material {
+        dot_material.0 = expected_material.clone();
+    }
 
     dot_transform.translation = transform.translation() + Vec3::Y;
     dot_transform.scale = Vec3::splat(0.6 * nearest_state.size);

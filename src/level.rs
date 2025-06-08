@@ -416,12 +416,13 @@ enum Tile {
     Outlet,
     PowerSource,
     FloorWire,
+    WallWire,
 }
 
 /// Converts from the color of the pixel to the type of tile.
 fn color_to_tile(color: &Color) -> Option<Tile> {
     #[allow(clippy::eq_op)]
-    static MAPPING: [(Color, Tile); 22] = [
+    static MAPPING: [(Color, Tile); 23] = [
         // White == Floor
         (Color::linear_rgb(1., 1., 1.), Tile::Floor),
         // Light Blue == Elevated Floor
@@ -479,6 +480,11 @@ fn color_to_tile(color: &Color) -> Option<Tile> {
             Color::linear_rgb(66.0 / 255.0, 130.0 / 255.0, 111.0 / 255.0),
             Tile::FloorWire,
         ),
+        // Darker Teal == Wall Wire
+        (
+            Color::linear_rgb(51.0 / 255.0, 109.0 / 255.0, 136.0 / 255.0),
+            Tile::WallWire,
+        ),
     ];
 
     let color_distance_scale = 10_000;
@@ -495,6 +501,17 @@ fn color_to_tile(color: &Color) -> Option<Tile> {
     }
 
     Some(candidate.1)
+}
+
+fn is_electrical(tile: &Tile) -> bool {
+    matches!(
+        tile,
+        Tile::FloorWire
+            | Tile::WallWire
+            | Tile::PowerSource
+            | Tile::Outlet
+            | Tile::ComputerMainframe
+    )
 }
 
 fn load_level(
@@ -649,10 +666,13 @@ fn load_level(
                 level_tag.clone(),
                 Mesh3d(common.mesh_cube.clone()),
                 MeshMaterial3d(common.material_gray.clone()),
-                Transform::from_translation(info.pos + Vec3::Y),
+                Transform::from_translation(info.pos + Vec3::Y).with_scale(Vec3::new(1., 1.4, 1.)),
                 RigidBody::Static,
                 Collider::cuboid(1., 1., 1.),
-                Mainframe { active: false },
+                Mainframe {
+                    active: false,
+                    has_charge: false,
+                },
             ));
         })
         .lift_floor()
@@ -818,7 +838,7 @@ fn load_level(
                 level_tag.clone(),
                 Mesh3d(common.mesh_sphere.clone()),
                 MeshMaterial3d(common.material_dark_gray.clone()),
-                Transform::from_translation(info.pos),
+                Transform::from_translation(info.pos - Vec3::Y * 0.5),
                 GlobalTransform::default(),
                 Well,
             ));
@@ -860,13 +880,6 @@ fn load_level(
         })
         .for_tile(Tile::PowerSource),
         LevelSpawner::new(|commands, info| {
-            fn is_electrical(tile: &Tile) -> bool {
-                matches!(
-                    tile,
-                    Tile::FloorWire | Tile::PowerSource | Tile::Outlet | Tile::ComputerMainframe
-                )
-            }
-
             let width = 0.3;
             let extent = 0.7;
 
@@ -894,6 +907,45 @@ fn load_level(
             }
         })
         .for_tile(Tile::FloorWire),
+        LevelSpawner::new(|commands, info| {
+            spawn_cube(
+                commands,
+                info.pos + Vec3::Y,
+                common.material_dark_gray.clone(),
+            );
+            spawn_cube(
+                commands,
+                info.pos + Vec3::Y * 2.,
+                common.material_invisible.clone(),
+            );
+
+            let width = 0.3;
+            let extent = 0.7;
+
+            for (dx, dz) in [(-1, 0), (1, 0), (0, -1), (0, 1)] {
+                let neighbor = &tile_grid[&(info.grid + IVec2::new(dx, dz))];
+                if is_electrical(neighbor) {
+                    let center = info.pos + Vec3::Y * 1.5;
+                    let shift = Vec3::new(dx as f32, 0., dz as f32) * extent / 2.;
+
+                    let mut scale = Vec3::new(width, 0.2, width);
+                    if dx != 0 {
+                        scale.x = extent + width;
+                    } else {
+                        scale.z = extent + width;
+                    }
+
+                    commands.spawn((
+                        level_tag.clone(),
+                        Mesh3d(common.mesh_cube.clone()),
+                        MeshMaterial3d(common.material_electricity.clone()),
+                        Transform::from_translation(center + shift).with_scale(scale),
+                        Wire,
+                    ));
+                }
+            }
+        })
+        .for_tile(Tile::WallWire),
     ]
     .into_iter()
     .collect();
