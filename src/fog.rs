@@ -19,8 +19,8 @@ struct Fog {
 #[derive(Component)]
 pub struct DoesNotClearFog;
 
-const GRID_SPACING: f32 = 1.8;
-const FOG_GRID_SIZE: i32 = 50;
+const GRID_SPACING: f32 = 1.0;
+const FOG_GRID_SIZE: i32 = 80;
 
 fn spawn_fog_system(mut commands: Commands, common: Res<Common>) {
     for x in 0..FOG_GRID_SIZE {
@@ -40,10 +40,19 @@ fn clear_fog_system(
     time: Res<Time>,
     mut fog: Query<(&mut Transform, &mut Fog)>,
     player: Query<&GlobalTransform, With<Player>>,
-    clear: Query<&GlobalTransform, (Without<DoesNotClearFog>, Without<Fog>)>,
+    clear: Query<(Entity, &GlobalTransform), (Without<DoesNotClearFog>, Without<Fog>)>,
+    parent: Query<&ChildOf>,
+    does_not_clear_fog: Query<&DoesNotClearFog>,
 ) {
     let mut grid_to_clear: HashSet<IVec2> = HashSet::new();
-    for p in clear.iter() {
+    for (entity, p) in clear.iter() {
+        if parent
+            .iter_ancestors(entity)
+            .any(|ancestor| does_not_clear_fog.contains(ancestor))
+        {
+            continue;
+        }
+
         let p = p.translation().xz().round().as_ivec2();
         for dx in -1..=1 {
             for dz in -1..=1 {
