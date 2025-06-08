@@ -65,6 +65,7 @@ fn setup_levels_system(mut commands: Commands, asset_server: Res<AssetServer>) {
         "level_3.png",
         "level_4.png",
         "level_5.png",
+        "level_6.png",
         "rails_map.png",
     ];
 
