@@ -60,11 +60,9 @@ pub fn activate_computer_system(
     mut mainframe: Query<(Entity, &mut Mainframe, &mut Activated)>,
 ) {
     for (entity, mut mainframe, mut activated) in mainframe.iter_mut() {
-        if activated.take_activated() {
-            if mainframe.has_charge {
-                mainframe.active = !mainframe.active;
-                commands.entity(entity).remove::<Interactible>();
-            }
+        if activated.take_activated() && mainframe.has_charge {
+            mainframe.active = !mainframe.active;
+            commands.entity(entity).remove::<Interactible>();
         }
     }
 }
