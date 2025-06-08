@@ -27,7 +27,7 @@ use bevy::{
 use common::{CommonPlugin, setup_common};
 use door::DoorPlugin;
 use draggable::DraggablePlugin;
-use evil_robot::{EvilRobotPlugin, update_evil_robot_materials};
+use evil_robot::EvilRobotPlugin;
 use interactible::InteractiblePlugin;
 use mainframe::MainframePlugin;
 use player::{PlayerCamera, PlayerPlugin};

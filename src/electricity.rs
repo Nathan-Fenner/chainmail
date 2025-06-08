@@ -7,7 +7,6 @@ use bevy::{
 use crate::{
     common::Common,
     draggable::Draggable,
-    evil_robot::EvilRobot,
     interactible::{Activated, Interactible},
     mainframe::Mainframe,
 };
@@ -148,7 +147,6 @@ pub fn compute_charge_system(
     outlets: Query<&GlobalTransform, With<Outlet>>,
     wires: Query<&GlobalTransform, With<Wire>>,
     mut mainframes: Query<(&GlobalTransform, &mut Mainframe)>,
-    mut evil_robots: Query<(&GlobalTransform, &mut EvilRobot)>,
     plugs: Query<&Plug>,
 ) {
     power_grid.active.clear();
@@ -206,9 +204,6 @@ pub fn compute_charge_system(
             let neighbor = p + IVec2::new(dx, dz);
             if let Some(mainframe) = mainframes_to_charge.get_mut(&neighbor) {
                 mainframe.has_charge = true;
-            }
-            if let Some(evil_robot) = evil_robots_to_charge.get_mut(&neighbor) {
-                evil_robot.has_charge = true;
             }
             if wire_grid.contains(&neighbor) && !power_grid.active.contains(&neighbor) {
                 power_grid.active.insert(neighbor);
