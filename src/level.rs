@@ -837,6 +837,17 @@ fn load_level(
             if !should_spawn_player {
                 return;
             }
+
+            // Create a spawn point at this location
+            commands.spawn((
+                level_tag.clone(),
+                Mesh3d(common.mesh_cube.clone()),
+                MeshMaterial3d(common.material_invisible.clone()),
+                Transform::from_translation(info.pos + Vec3::new(0.0, 2.0, 0.0)),
+                Collider::cuboid(1.0, 1.0, 1.0),
+                SpawnPoint {},
+            ));
+
             commands.spawn((
                 // No level tag on the player
                 Mesh3d(common.mesh_sphere.clone()),
