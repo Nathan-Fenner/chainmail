@@ -24,6 +24,8 @@ pub struct Common {
 
     pub material_icon_e: Handle<StandardMaterial>,
     pub material_icon_low_power: Handle<StandardMaterial>,
+
+    pub scene_computer: Handle<Scene>,
 }
 
 #[derive(Default)]
@@ -131,5 +133,7 @@ pub fn setup_common(
             ..default()
         }),
         image_e,
+
+        scene_computer: asset_server.load("computer_console.glb#Scene0"),
     });
 }

@@ -27,7 +27,7 @@ fn detect_player_entering_door(
             .translation
             .distance(trigger_transform.translation);
         if distance < 1.5 {
-            info!("Player entered the door zone!");
+            // info!("Player entered the door zone!");
             // Insert win condition logic, scene transition, etc.
         }
     }
