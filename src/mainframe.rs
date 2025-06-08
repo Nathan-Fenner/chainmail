@@ -16,7 +16,10 @@ fn mainframe_point_light() -> PointLight {
 }
 
 #[derive(Component)]
-#[require(Interactible = Interactible::radius(1.9).with_priority(2), PointLight = mainframe_point_light())]
+#[require(
+    Interactible = Interactible::radius(1.9).with_priority(2).with_dot_offset(Vec3::Y * 1.2),
+    PointLight = mainframe_point_light(),
+)]
 pub struct Mainframe {
     /// Whether the player has activate the mainframe.
     pub active: bool,
@@ -67,22 +70,30 @@ pub fn activate_computer_system(
     }
 }
 
+#[derive(Component)]
+pub struct HasGlow;
+
 pub fn recolor_computer(
     mut commands: Commands,
     mut mainframe: Query<(Entity, &Mainframe, &mut PointLight), Changed<Mainframe>>,
     common: Res<Common>,
+    has_glow: Query<&HasGlow>,
 ) {
     for (entity, mainframe, mut light) in mainframe.iter_mut() {
         if mainframe.active {
-            commands
-                .entity(entity)
-                .insert(MeshMaterial3d(common.material_active.clone()));
+            if !has_glow.contains(entity) {
+                // Spawn a glow for the computer
+                commands.entity(entity).insert(HasGlow);
+                commands.entity(entity).with_child((
+                    Mesh3d(common.mesh_cube.clone()),
+                    MeshMaterial3d(common.material_active.clone()),
+                    Transform::from_translation(Vec3::Y * 1.4)
+                        .with_scale(Vec3::new(1.0, 0.1, 1.2))
+                        .looking_to(Vec3::Z + Vec3::Y * 0.7, Vec3::Y),
+                ));
+            }
             light.intensity = light_consts::lux::RAW_SUNLIGHT;
         } else {
-            commands
-                .entity(entity)
-                .insert(MeshMaterial3d(common.material_yellow.clone()));
-
             light.intensity = 0.0;
         }
     }
