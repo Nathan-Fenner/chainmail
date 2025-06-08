@@ -8,6 +8,7 @@ use crate::{
     common::Common,
     draggable::Draggable,
     interactible::{Activated, Interactible},
+    mainframe::Mainframe,
 };
 
 pub struct ElectricityPlugin;
@@ -147,11 +148,25 @@ pub fn compute_charge_system(
     sources: Query<(&GlobalTransform, &PowerSource)>,
     outlets: Query<&GlobalTransform, With<Outlet>>,
     wires: Query<&GlobalTransform, With<Wire>>,
+    mut mainframes: Query<(&GlobalTransform, &mut Mainframe)>,
     plugs: Query<&Plug>,
 ) {
     power_grid.active.clear();
 
     for (transform, _source) in sources.iter() {
+        power_grid
+            .active
+            .insert(global_to_grid(transform.translation()));
+    }
+
+    let mut mainframes_to_charge: HashMap<IVec2, Mut<Mainframe>> = HashMap::new();
+
+    for (transform, mut mainframe) in mainframes.iter_mut() {
+        if !mainframe.active {
+            mainframe.has_charge = false;
+            mainframes_to_charge.insert(global_to_grid(transform.translation()), mainframe);
+            continue;
+        }
         power_grid
             .active
             .insert(global_to_grid(transform.translation()));
@@ -187,8 +202,11 @@ pub fn compute_charge_system(
     let mut stack: Vec<IVec2> = power_grid.active.iter().copied().collect();
     while let Some(p) = stack.pop() {
         // Expand charge to neighboring cells.
-        for (dx, dz) in [(1, 0), (-1, 0), (0, 1), (-1, 0)] {
+        for (dx, dz) in [(1, 0), (-1, 0), (0, 1), (0, -1)] {
             let neighbor = p + IVec2::new(dx, dz);
+            if let Some(mainframe) = mainframes_to_charge.get_mut(&neighbor) {
+                mainframe.has_charge = true;
+            }
             if wire_grid.contains(&neighbor) && !power_grid.active.contains(&neighbor) {
                 power_grid.active.insert(neighbor);
                 stack.push(neighbor);

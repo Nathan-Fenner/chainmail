@@ -23,6 +23,7 @@ pub struct Common {
     pub image_e: Handle<Image>,
 
     pub material_icon_e: Handle<StandardMaterial>,
+    pub material_icon_low_power: Handle<StandardMaterial>,
 }
 
 #[derive(Default)]
@@ -42,6 +43,8 @@ pub fn setup_common(
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
     let image_e: Handle<Image> = asset_server.load("icon_e.png");
+    let image_low_power: Handle<Image> = asset_server.load("icon_low_power.png");
+
     commands.insert_resource(Common {
         mesh_cube: meshes.add(Cuboid::default()),
         mesh_plane: meshes.add(Plane3d::new(-Vec3::Z, Vec2::new(0.5, 0.5))),
@@ -119,6 +122,11 @@ pub fn setup_common(
         }),
         material_icon_e: materials.add(StandardMaterial {
             base_color_texture: Some(image_e.clone()),
+            alpha_mode: AlphaMode::Mask(0.5),
+            ..default()
+        }),
+        material_icon_low_power: materials.add(StandardMaterial {
+            base_color_texture: Some(image_low_power.clone()),
             alpha_mode: AlphaMode::Mask(0.5),
             ..default()
         }),
