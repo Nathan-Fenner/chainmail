@@ -11,6 +11,7 @@ use crate::{
 pub struct Interactible {
     pub radius: f32,
     pub priority: i32,
+    pub dot_offset: Vec3,
 
     pub icon: Option<Handle<StandardMaterial>>,
 }
@@ -21,6 +22,7 @@ impl Interactible {
         Self {
             radius,
             priority: 0,
+            dot_offset: Vec3::ZERO,
             icon: None,
         }
     }
@@ -32,6 +34,12 @@ impl Interactible {
     pub fn with_icon(self, icon: Handle<StandardMaterial>) -> Self {
         Self {
             icon: Some(icon),
+            ..self
+        }
+    }
+    pub fn with_dot_offset(self, offset: Vec3) -> Self {
+        Self {
+            dot_offset: offset,
             ..self
         }
     }
@@ -159,7 +167,7 @@ fn visualize_interactible_system(
     global_transform: Query<&GlobalTransform>,
     mut dot_transform: Query<&mut Transform>,
     mut dot_material: Query<&mut MeshMaterial3d<StandardMaterial>>,
-
+    interactible: Query<&Interactible>,
     the_dot: Res<InteractibleDot>,
     camera: Query<&GlobalTransform, With<PlayerCamera>>,
     common: Res<Common>,
@@ -186,6 +194,9 @@ fn visualize_interactible_system(
     let Ok(transform) = global_transform.get(nearest) else {
         return;
     };
+    let Ok(nearest_config) = interactible.get(nearest) else {
+        return;
+    };
 
     nearest_state.size += nearest_state.velocity * delta;
     nearest_state.velocity *= (0.05f32).powf(delta);
@@ -200,7 +211,7 @@ fn visualize_interactible_system(
         dot_material.0 = expected_material.clone();
     }
 
-    dot_transform.translation = transform.translation() + Vec3::Y;
+    dot_transform.translation = transform.translation() + Vec3::Y + nearest_config.dot_offset;
     dot_transform.scale = Vec3::splat(0.6 * nearest_state.size);
     let to_camera = (camera.translation() - dot_transform.translation).normalize();
     dot_transform.translation += to_camera * 1.0;
