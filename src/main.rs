@@ -27,7 +27,7 @@ use bevy::{
 use common::{CommonPlugin, setup_common};
 use door::DoorPlugin;
 use draggable::DraggablePlugin;
-use evil_robot::EvilRobotPlugin;
+use evil_robot::{EvilRobotPlugin, update_evil_robot_materials};
 use interactible::InteractiblePlugin;
 use mainframe::MainframePlugin;
 use player::{PlayerCamera, PlayerPlugin};
@@ -60,6 +60,7 @@ fn main() {
         ))
         .add_plugins((ChainPlugin, ElectricityPlugin))
         .add_systems(Startup, setup.after(setup_common))
+        .add_systems(Update, (update_evil_robot_materials,))
         .run();
 }
 

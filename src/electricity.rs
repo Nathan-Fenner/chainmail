@@ -7,6 +7,7 @@ use bevy::{
 use crate::{
     common::Common,
     draggable::Draggable,
+    evil_robot::EvilRobot,
     interactible::{Activated, Interactible},
     mainframe::Mainframe,
 };
@@ -147,6 +148,7 @@ pub fn compute_charge_system(
     outlets: Query<&GlobalTransform, With<Outlet>>,
     wires: Query<&GlobalTransform, With<Wire>>,
     mut mainframes: Query<(&GlobalTransform, &mut Mainframe)>,
+    mut evil_robots: Query<(&GlobalTransform, &mut EvilRobot)>,
     plugs: Query<&Plug>,
 ) {
     power_grid.active.clear();
@@ -163,6 +165,19 @@ pub fn compute_charge_system(
         if !mainframe.active {
             mainframe.has_charge = false;
             mainframes_to_charge.insert(global_to_grid(transform.translation()), mainframe);
+            continue;
+        }
+        power_grid
+            .active
+            .insert(global_to_grid(transform.translation()));
+    }
+
+    let mut evil_robots_to_charge: HashMap<IVec2, Mut<EvilRobot>> = HashMap::new();
+
+    for (transform, mut evil_robot) in evil_robots.iter_mut() {
+        if !evil_robot.active {
+            evil_robot.has_charge = false;
+            evil_robots_to_charge.insert(global_to_grid(transform.translation()), evil_robot);
             continue;
         }
         power_grid
@@ -204,6 +219,9 @@ pub fn compute_charge_system(
             let neighbor = p + IVec2::new(dx, dz);
             if let Some(mainframe) = mainframes_to_charge.get_mut(&neighbor) {
                 mainframe.has_charge = true;
+            }
+            if let Some(evil_robot) = evil_robots_to_charge.get_mut(&neighbor) {
+                evil_robot.has_charge = true;
             }
             if wire_grid.contains(&neighbor) && !power_grid.active.contains(&neighbor) {
                 power_grid.active.insert(neighbor);

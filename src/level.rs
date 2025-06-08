@@ -66,6 +66,7 @@ fn setup_levels_system(mut commands: Commands, asset_server: Res<AssetServer>) {
         "level_4.png",
         "level_5.png",
         "level_6.png",
+        "level_7.png",
         "rails_map.png",
     ];
 
@@ -157,7 +158,7 @@ fn load_level_system(
     // If there is no player, load the first level.
 
     if !*has_loaded_player {
-        let first_level = LevelName::from_string("level_1.png".to_string());
+        let first_level = LevelName::from_string("level_7.png".to_string());
         load_level(
             Vec3::ZERO,
             LevelTag {
@@ -513,6 +514,7 @@ fn is_electrical(tile: &Tile) -> bool {
             | Tile::Outlet
             | Tile::ComputerMainframe
             | Tile::Door
+            | Tile::Zappy
     )
 }
 
@@ -730,14 +732,20 @@ fn load_level(
         .for_tile(Tile::Outside),
         // Blue == Zappy
         LevelSpawner::new(|commands, info| {
+            spawn_floor_wire(
+                commands, common, &tile_grid, &level_tag, info.grid, info.pos,
+            );
             commands.spawn((
                 level_tag.clone(),
                 Mesh3d(common.mesh_sphere.clone()),
                 MeshMaterial3d(common.material_beepboop.clone()),
                 Transform::from_translation(info.pos + Vec3::Y),
-                RigidBody::Dynamic,
+                RigidBody::Static,
                 Collider::cuboid(1., 1., 1.),
-                EvilRobot {},
+                EvilRobot {
+                    has_charge: false,
+                    active: false,
+                },
             ));
         })
         .for_tile(Tile::Zappy),
@@ -940,31 +948,9 @@ fn load_level(
         })
         .for_tile(Tile::PowerSource),
         LevelSpawner::new(|commands, info| {
-            let width = 0.3;
-            let extent = 0.7;
-
-            for (dx, dz) in [(-1, 0), (1, 0), (0, -1), (0, 1)] {
-                let neighbor = &tile_grid[&(info.grid + IVec2::new(dx, dz))];
-                if is_electrical(neighbor) {
-                    let center = info.pos + Vec3::Y * 0.5;
-                    let shift = Vec3::new(dx as f32, 0., dz as f32) * extent / 2.;
-
-                    let mut scale = Vec3::new(width, 0.2, width);
-                    if dx != 0 {
-                        scale.x = extent + width;
-                    } else {
-                        scale.z = extent + width;
-                    }
-
-                    commands.spawn((
-                        level_tag.clone(),
-                        Mesh3d(common.mesh_cube.clone()),
-                        MeshMaterial3d(common.material_electricity.clone()),
-                        Transform::from_translation(center + shift).with_scale(scale),
-                        Wire,
-                    ));
-                }
-            }
+            spawn_floor_wire(
+                commands, common, &tile_grid, &level_tag, info.grid, info.pos,
+            );
         })
         .for_tile(Tile::FloorWire),
         LevelSpawner::new(|commands, info| {
@@ -1269,6 +1255,41 @@ fn spawn_chains(
                     MeshMaterial3d(common.material_dark_gray.clone()),
                 ));
             }
+        }
+    }
+}
+
+fn spawn_floor_wire(
+    commands: &mut Commands,
+    common: &Common,
+    tile_grid: &HashMap<IVec2, Tile>,
+    level_tag: &LevelTag,
+    grid: IVec2,
+    pos: Vec3,
+) {
+    let width = 0.3;
+    let extent = 0.7;
+
+    for (dx, dz) in [(-1, 0), (1, 0), (0, -1), (0, 1)] {
+        let neighbor = &tile_grid[&(grid + IVec2::new(dx, dz))];
+        if is_electrical(neighbor) {
+            let center = pos + Vec3::Y * 0.5;
+            let shift = Vec3::new(dx as f32, 0., dz as f32) * extent / 2.;
+
+            let mut scale = Vec3::new(width, 0.2, width);
+            if dx != 0 {
+                scale.x = extent + width;
+            } else {
+                scale.z = extent + width;
+            }
+
+            commands.spawn((
+                level_tag.clone(),
+                Mesh3d(common.mesh_cube.clone()),
+                MeshMaterial3d(common.material_electricity.clone()),
+                Transform::from_translation(center + shift).with_scale(scale),
+                Wire,
+            ));
         }
     }
 }

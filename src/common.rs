@@ -19,6 +19,7 @@ pub struct Common {
     pub material_invisible: Handle<StandardMaterial>,
     pub material_fog: Handle<StandardMaterial>,
     pub material_outlet: Handle<StandardMaterial>,
+    pub material_zappy_boy: Handle<StandardMaterial>,
 
     pub image_e: Handle<Image>,
 
@@ -100,6 +101,13 @@ pub fn setup_common(
             base_color: Color::linear_rgb(1.0, 0.0, 0.3),
             emissive: LinearRgba::rgb(1.0, 0.2, 0.3) * 20.,
             perceptual_roughness: 1.0,
+            ..default()
+        }),
+        material_zappy_boy: materials.add(StandardMaterial {
+            base_color: Color::linear_rgb(0.8, 0.88, 0.4),
+            emissive: LinearRgba::rgb(1.0, 0.2, 0.3) * 20.,
+            perceptual_roughness: 1.0,
+            metallic: 1.0,
             ..default()
         }),
         material_invisible: materials.add(StandardMaterial {
