@@ -1,4 +1,4 @@
-use bevy::{platform::collections::HashSet, prelude::*};
+use bevy::{pbr::NotShadowCaster, platform::collections::HashSet, prelude::*};
 
 use crate::{common::Common, player::Player};
 
@@ -29,6 +29,7 @@ fn spawn_fog_system(mut commands: Commands, common: Res<Common>) {
                 Mesh3d(common.mesh_cube.clone()),
                 MeshMaterial3d(common.material_fog.clone()),
                 Fog { progress: 0.0 },
+                NotShadowCaster,
                 Transform::from_translation(Vec3::new(x as f32, 0.0, z as f32) * GRID_SPACING)
                     .with_scale(Vec3::new(2.3, 14.0, 2.3)),
             ));
