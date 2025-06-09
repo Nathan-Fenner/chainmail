@@ -67,7 +67,7 @@ fn capture_player_system(
             && robot_transform
                 .translation
                 .distance(player_transform.translation)
-                < 1.2
+                < 2.4
         {
             player_transform.translation = current_spawn.location;
         }
@@ -87,7 +87,7 @@ pub fn spinning_system(
         let has_power = power.active.contains(&grid);
 
         let target_scale = if has_power {
-            Vec3::splat(2.)
+            Vec3::splat(4.)
         } else {
             Vec3::splat(0.)
         };

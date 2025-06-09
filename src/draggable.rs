@@ -7,7 +7,7 @@ use crate::{
 };
 
 const PICK_RADIUS: f32 = 1.9;
-const DROP_RADIUS: f32 = 3.0;
+const DROP_RADIUS: f32 = 2.0;
 
 #[derive(Default, Component)]
 #[require(Interactible = Interactible::radius(PICK_RADIUS))]
