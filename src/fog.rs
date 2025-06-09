@@ -70,7 +70,7 @@ fn clear_fog_system(
 
     const FOG_SIZE: f32 = GRID_SPACING * FOG_GRID_SIZE as f32;
 
-    let max_scale = 4.5;
+    let max_scale = 3.0;
 
     for (mut fog, mut fog_speed) in fog.iter_mut() {
         if fog.translation.x < player.x - FOG_SIZE / 2. {
