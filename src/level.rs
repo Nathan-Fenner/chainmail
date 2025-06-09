@@ -8,7 +8,7 @@ use bevy::{
 };
 
 use crate::{
-    chain::{self, ChainLink},
+    chain::ChainLink,
     common::Common,
     door::Door,
     draggable::Draggable,
@@ -1179,11 +1179,11 @@ fn spawn_zipline(
 }
 
 //Flood fill spawn one chain, chain_ball input is the starting position.
-fn spawn_chain<'a>(
+fn spawn_chain(
     chain_positions: &HashMap<IVec2, Vec3>,
     starting_chain_ball: (IVec2, Vec3),
-    visited: &'a mut HashMap<IVec2, bool>,
-) -> (Vec<(IVec2, Vec3)>) {
+    visited: &mut HashMap<IVec2, bool>,
+) -> Vec<(IVec2, Vec3)> {
     //valid chain dirs
     let dirs = [ivec2(0, 1), ivec2(0, -1), ivec2(1, 0), ivec2(-1, 0)];
     let mut chain_list: Vec<(IVec2, Vec3)> = Vec::new();
@@ -1206,7 +1206,7 @@ fn spawn_chain<'a>(
         visited.insert(curr_chain_ball, true);
     }
 
-    return chain_list;
+    chain_list
 }
 
 fn spawn_chains(
@@ -1215,11 +1215,6 @@ fn spawn_chains(
     common: &Common,
     chain_positions: &HashMap<IVec2, Vec3>,
 ) {
-    println!("spawn chains {:?}", chain_positions);
-    let mut chain_entities: HashMap<IVec2, Entity> = default();
-
-    let mut chain_ends: Vec<(Entity, Vec3)> = Vec::new();
-
     let mut visited: HashMap<IVec2, bool> = HashMap::new();
     let mut chain_locs: Vec<Vec<(IVec2, Vec3)>> = Vec::new();
 
@@ -1231,48 +1226,49 @@ fn spawn_chains(
         }
     }
 
-    if chain_locs.len()>=2{
-        for chain in chain_locs{
+    if chain_locs.len() >= 2 {
+        for chain in chain_locs {
             spawn_chains(level_tag, commands, common, &chain.into_iter().collect());
         }
-        return
+        return;
     }
 
-    for chain_loc in chain_locs {
-        println!("this is a chain");
-        for (chain_ball, chain_pos) in chain_loc {
-            let collision_layer = if (chain_ball.x + chain_ball.y) % 2 == 0 {
-                let mut interact = LayerMask::ALL;
-                interact.remove(4);
-                CollisionLayers::new(2, interact)
-            } else {
-                let mut interact = LayerMask::ALL;
-                interact.remove(2);
-                CollisionLayers::new(4, interact)
-            };
-            let chain_id = commands
-                .spawn((
-                    level_tag.clone(),
-                    Mesh3d(common.mesh_small_sphere.clone()),
-                    MeshMaterial3d(common.material_dark_gray.clone()),
-                    Transform::from_translation(chain_pos).with_scale(Vec3::splat(0.75)),
-                    RigidBody::Dynamic,
-                    ColliderDensity(0.1),
-                    Collider::sphere(0.5),
-                    collision_layer,
-                ))
-                .id();
-            if [IVec2::X, IVec2::NEG_X, IVec2::Y, IVec2::NEG_Y]
-                .into_iter()
-                .filter(|d| chain_positions.contains_key(&(chain_ball + *d)))
-                .count()
-                == 1
-            {
-                println!("These are chain ends {:?}", (chain_id, chain_pos));
-                chain_ends.push((chain_id, chain_pos));
-            }
-            chain_entities.insert(chain_ball, chain_id);
+    let mut chain_entities: HashMap<IVec2, Entity> = default();
+
+    let mut chain_ends: Vec<(Entity, Vec3)> = Vec::new();
+
+    for (&chain_ball, &chain_pos) in chain_positions {
+        let collision_layer = if (chain_ball.x + chain_ball.y) % 2 == 0 {
+            let mut interact = LayerMask::ALL;
+            interact.remove(4);
+            CollisionLayers::new(2, interact)
+        } else {
+            let mut interact = LayerMask::ALL;
+            interact.remove(2);
+            CollisionLayers::new(4, interact)
+        };
+        let chain_id = commands
+            .spawn((
+                level_tag.clone(),
+                Mesh3d(common.mesh_small_sphere.clone()),
+                MeshMaterial3d(common.material_dark_gray.clone()),
+                Transform::from_translation(chain_pos).with_scale(Vec3::splat(0.75)),
+                RigidBody::Dynamic,
+                ColliderDensity(0.1),
+                Collider::sphere(0.5),
+                collision_layer,
+            ))
+            .id();
+        if [IVec2::X, IVec2::NEG_X, IVec2::Y, IVec2::NEG_Y]
+            .into_iter()
+            .filter(|d| chain_positions.contains_key(&(chain_ball + *d)))
+            .count()
+            == 1
+        {
+            println!("These are chain ends {:?}", (chain_id, chain_pos));
+            chain_ends.push((chain_id, chain_pos));
         }
+        chain_entities.insert(chain_ball, chain_id);
     }
 
     for (end_index, (chain_end, chain_pos)) in chain_ends.iter().enumerate() {
