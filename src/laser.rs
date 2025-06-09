@@ -26,6 +26,16 @@ fn draw_lasers_system(
     mut commands: Commands,
     mut lasers: Query<(&Transform, &mut Laser, &LevelTag)>,
     mut beam: Query<&mut Transform, (With<LaserBeam>, Without<Laser>)>,
+
+    mut player: Query<
+        &mut Transform,
+        (
+            With<crate::player::Player>,
+            Without<LaserBeam>,
+            Without<Laser>,
+        ),
+    >,
+    current_spawn: Res<crate::spawn_point::CurrentSpawnPoint>,
 ) {
     for (laser_transform, mut laser, laser_level) in lasers.iter_mut() {
         let cast = spatial.cast_ray(
@@ -37,6 +47,10 @@ fn draw_lasers_system(
         );
 
         if let Some(cast) = cast {
+            if let Ok(mut player) = player.get_mut(cast.entity) {
+                // Respawn the player
+                player.translation = current_spawn.location;
+            }
             let to = laser_transform.translation + cast.distance * laser.direction;
             let from = laser_transform.translation;
 
