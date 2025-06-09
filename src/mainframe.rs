@@ -1,8 +1,9 @@
-use bevy::prelude::*;
+use bevy::{platform::collections::HashSet, prelude::*};
 
 use crate::{
     common::Common,
     interactible::{Activated, Interactible},
+    level::{LevelName, LevelTag},
 };
 
 fn mainframe_point_light() -> PointLight {
@@ -15,6 +16,11 @@ fn mainframe_point_light() -> PointLight {
     }
 }
 
+#[derive(Resource)]
+pub struct RememberedMainframes {
+    remembered: HashSet<(LevelName, IVec2)>,
+}
+
 #[derive(Component)]
 #[require(
     Interactible = Interactible::radius(1.9).with_priority(2).with_dot_offset(Vec3::Y * 1.2),
@@ -24,17 +30,22 @@ pub struct Mainframe {
     /// Whether the player has activate the mainframe.
     pub active: bool,
     pub has_charge: bool,
+    pub location: IVec2,
 }
 
 pub struct MainframePlugin;
 
 impl Plugin for MainframePlugin {
     fn build(&self, app: &mut App) {
+        app.insert_resource(RememberedMainframes {
+            remembered: HashSet::new(),
+        });
         app.add_systems(
             Update,
             (
                 set_mainframe_icon_system.after(crate::electricity::compute_charge_system),
                 activate_computer_system,
+                remember_compute_system,
                 recolor_computer,
             )
                 .chain(),
@@ -66,6 +77,22 @@ pub fn activate_computer_system(
         if activated.take_activated() && mainframe.has_charge {
             mainframe.active = !mainframe.active;
             commands.entity(entity).remove::<Interactible>();
+        }
+    }
+}
+
+fn remember_compute_system(
+    mut remember: ResMut<RememberedMainframes>,
+    mut mainframes: Query<(&mut Mainframe, &LevelTag)>,
+) {
+    for (mut mainframe, level) in mainframes.iter_mut() {
+        let key = (level.level.clone(), mainframe.location);
+        if mainframe.active {
+            if !remember.remembered.contains(&key) {
+                remember.remembered.insert(key);
+            }
+        } else if remember.remembered.contains(&key) {
+            mainframe.active = true;
         }
     }
 }

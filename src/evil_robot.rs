@@ -26,7 +26,7 @@ impl Plugin for EvilRobotPlugin {
             )
                 .chain(),
         )
-        .add_systems(Update, (update_evil_robot_materials,));
+        .add_systems(Update, (update_evil_robot_materials, spinning_system));
     }
 }
 
@@ -71,5 +71,34 @@ fn capture_player_system(
         {
             player_transform.translation = current_spawn.location;
         }
+    }
+}
+#[derive(Component)]
+pub struct Spinning(pub Vec3);
+
+pub fn spinning_system(
+    time: Res<Time>,
+    mut spinning: Query<(&GlobalTransform, &mut Transform, &Spinning)>,
+    power: Res<PowerGrid>,
+) {
+    let delta = time.delta_secs();
+    for (global_transform, mut transform, spinning) in spinning.iter_mut() {
+        let grid = global_transform.translation().xz().round().as_ivec2();
+        let has_power = power.active.contains(&grid);
+
+        let target_scale = if has_power {
+            Vec3::splat(2.)
+        } else {
+            Vec3::splat(0.)
+        };
+
+        transform.rotate_axis(
+            Dir3::try_from(spinning.0).unwrap(),
+            spinning.0.length() * delta,
+        );
+        transform.rotation = transform.rotation.normalize();
+        transform.scale = transform
+            .scale
+            .lerp(target_scale, (10.0 * delta).clamp(0.0, 0.5));
     }
 }

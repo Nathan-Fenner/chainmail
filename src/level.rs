@@ -12,7 +12,7 @@ use crate::{
     door::Door,
     draggable::Draggable,
     electricity::{Outlet, Plug, PowerSource, Wire},
-    evil_robot::EvilRobot,
+    evil_robot::{EvilRobot, Spinning},
     fog::DoesNotClearFog,
     laser::Laser,
     mainframe::Mainframe,
@@ -706,6 +706,7 @@ fn load_level(
                 Mainframe {
                     active: false,
                     has_charge: false,
+                    location: info.grid,
                 },
             ));
 
@@ -735,15 +736,28 @@ fn load_level(
             spawn_floor_wire(
                 commands, common, &tile_grid, &level_tag, info.grid, info.pos,
             );
-            commands.spawn((
-                level_tag.clone(),
-                Mesh3d(common.mesh_sphere.clone()),
-                MeshMaterial3d(common.material_beepboop.clone()),
-                Transform::from_translation(info.pos + Vec3::Y),
-                RigidBody::Static,
-                Collider::cuboid(1., 1., 1.),
-                EvilRobot { has_charge: false },
-            ));
+            commands
+                .spawn((
+                    level_tag.clone(),
+                    Mesh3d(common.mesh_sphere.clone()),
+                    MeshMaterial3d(common.material_beepboop.clone()),
+                    Transform::from_translation(info.pos + Vec3::Y),
+                    RigidBody::Static,
+                    Collider::cuboid(1., 1., 1.),
+                    EvilRobot { has_charge: false },
+                ))
+                .with_child((
+                    Mesh3d(common.mesh_sphere.clone()),
+                    MeshMaterial3d(common.material_zappy_field.clone()),
+                    Transform::from_scale(Vec3::splat(2.)),
+                    Spinning(Vec3::new(1., 1., 1.)),
+                ))
+                .with_child((
+                    Mesh3d(common.mesh_sphere.clone()),
+                    MeshMaterial3d(common.material_zappy_field.clone()),
+                    Transform::from_scale(Vec3::splat(1.9)),
+                    Spinning(Vec3::new(-0.6, -0.6, -0.6)),
+                ));
         })
         .for_tile(Tile::Zappy),
         // Dark Grey == Well
