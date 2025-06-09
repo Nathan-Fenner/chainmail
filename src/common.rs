@@ -20,6 +20,7 @@ pub struct Common {
     pub material_fog: Handle<StandardMaterial>,
     pub material_outlet: Handle<StandardMaterial>,
     pub material_zappy_boy: Handle<StandardMaterial>,
+    pub material_zappy_field: Handle<StandardMaterial>,
 
     pub image_e: Handle<Image>,
 
@@ -108,6 +109,14 @@ pub fn setup_common(
             emissive: LinearRgba::rgb(1.0, 0.2, 0.3) * 20.,
             perceptual_roughness: 1.0,
             metallic: 1.0,
+            ..default()
+        }),
+        material_zappy_field: materials.add(StandardMaterial {
+            base_color_texture: Some(asset_server.load("zappy.png")),
+            alpha_mode: AlphaMode::Mask(0.5),
+            emissive: LinearRgba::rgb(1.0, 1.0, 0.3) * 20.,
+            perceptual_roughness: 1.0,
+            cull_mode: None,
             ..default()
         }),
         material_invisible: materials.add(StandardMaterial {
