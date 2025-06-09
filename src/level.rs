@@ -1180,9 +1180,9 @@ fn spawn_zipline(
 //Flood fill spawn one chain, chain_ball input is the starting position.
 fn spawn_chain<'a>(
     chain_positions: &HashMap<IVec2, Vec3>,
-    starting_chain_ball: IVec2,
+    starting_chain_ball: (IVec2, Vec3),
     visited: &'a mut HashMap<IVec2, bool>,
-) -> (Vec<IVec2>)
+) -> (Vec<(IVec2, Vec3)>)
 {
     //valid chain dirs
     let dirs= [
@@ -1191,16 +1191,18 @@ fn spawn_chain<'a>(
         ivec2(1, 0),
         ivec2(-1, 0)
     ];
-    let chain_list: Vec<IVec2>=Vec::new();
+    let mut chain_list: Vec<(IVec2, Vec3)>=Vec::new();
     let mut chain_q=VecDeque::new();
     chain_q.push_back(starting_chain_ball);
 
     //bfs
-    while let Some(curr_chain_ball) = chain_q.pop_front(){
+    while let Some(curr_chain) = chain_q.pop_front(){
+        let curr_chain_ball= curr_chain.0;
+        chain_list.push(curr_chain);
         for d in dirs{
             let next_chain_key=ivec2(curr_chain_ball.x+d[0], curr_chain_ball.y+d[1]); //potential same chain
             if chain_positions.contains_key(&next_chain_key) && !visited.contains_key(&next_chain_key){ //validate
-                chain_q.push_back(next_chain_key);
+                chain_q.push_back((next_chain_key, chain_positions[&next_chain_key]));
             };
         }
         visited.insert(curr_chain_ball, true);
@@ -1220,49 +1222,49 @@ fn spawn_chains(
     let mut chain_ends: Vec<(Entity, Vec3)> = Vec::new();
 
     let mut visited: HashMap<IVec2, bool> = HashMap::new();
-    let mut chain_locs: Vec<Vec<IVec2>> = Vec::new();
+    let mut chain_locs: Vec<Vec<(IVec2, Vec3)>> = Vec::new();
 
-    for (chain_ball, _) in chain_positions.iter() {
+    for (chain_ball, chain_pos) in chain_positions.iter() {
         //call spawn chain when encountering and unvisited chainball
         if !visited.contains_key(chain_ball){
-            let chain_loc = spawn_chain(chain_positions, *chain_ball, &mut visited);
+            let chain_loc = spawn_chain(chain_positions, (*chain_ball, *chain_pos), &mut visited);
             chain_locs.push(chain_loc);
         }
     }
 
-    for (chain_ball, chain_pos) in chain_positions.iter() {
-        let collision_layer = if (chain_ball.x + chain_ball.y) % 2 == 0 {
-            let mut interact = LayerMask::ALL;
-            interact.remove(4);
-            CollisionLayers::new(2, interact)
-        } else {
-            let mut interact = LayerMask::ALL;
-            interact.remove(2);
-            CollisionLayers::new(4, interact)
-        };
-        let chain_id = commands
+    for chain_loc in chain_locs{
+        for (chain_ball, chain_pos) in chain_loc{
+            let collision_layer = if (chain_ball.x + chain_ball.y) % 2 == 0 {
+                let mut interact = LayerMask::ALL;
+                interact.remove(4);
+                CollisionLayers::new(2, interact)
+            } else {
+                let mut interact = LayerMask::ALL;
+                interact.remove(2);
+                CollisionLayers::new(4, interact)
+            };
+            let chain_id = commands
             .spawn((
                 level_tag.clone(),
                 Mesh3d(common.mesh_small_sphere.clone()),
                 MeshMaterial3d(common.material_dark_gray.clone()),
-                Transform::from_translation(*chain_pos).with_scale(Vec3::splat(0.75)),
+                Transform::from_translation(chain_pos).with_scale(Vec3::splat(0.75)),
                 RigidBody::Dynamic,
                 ColliderDensity(0.1),
                 Collider::sphere(0.5),
                 collision_layer,
             ))
             .id();
-
         if [IVec2::X, IVec2::NEG_X, IVec2::Y, IVec2::NEG_Y]
-            .into_iter()
-            .filter(|d| chain_positions.contains_key(&(*chain_ball + *d)))
-            .count()
-            == 1
+        .into_iter()
+        .filter(|d| chain_positions.contains_key(&(chain_ball + *d)))
+        .count()
+        == 1
         {
-            chain_ends.push((chain_id, *chain_pos));
+            chain_ends.push((chain_id, chain_pos));
         }
-
-        chain_entities.insert(*chain_ball, chain_id);
+        chain_entities.insert(chain_ball, chain_id);
+        }
     }
 
     for (end_index, (chain_end, chain_pos)) in chain_ends.iter().enumerate() {
