@@ -3,6 +3,7 @@ pub mod common;
 pub mod door;
 pub mod draggable;
 pub mod electricity;
+pub mod email_spawner;
 pub mod evil_robot;
 pub mod fog;
 pub mod interactible;
@@ -37,8 +38,9 @@ use spawn_point::SpawnPointPlugin;
 use well::WellPlugin;
 
 use crate::{
-    chain::ChainPlugin, electricity::ElectricityPlugin, fog::FogPlugin, intro::IntroPlugin,
-    laser::LaserPlugin, level::LevelPlugin, ruby::RubyPlugin, zipline::ZiplinePlugin,
+    chain::ChainPlugin, electricity::ElectricityPlugin, email_spawner::EmailSpawnerPlugin,
+    fog::FogPlugin, intro::IntroPlugin, laser::LaserPlugin, level::LevelPlugin, ruby::RubyPlugin,
+    zipline::ZiplinePlugin,
 };
 
 fn main() {
@@ -60,7 +62,13 @@ fn main() {
             DoorPlugin,
             FogPlugin,
         ))
-        .add_plugins((IntroPlugin, ChainPlugin, RubyPlugin, ElectricityPlugin))
+        .add_plugins((
+            IntroPlugin,
+            ChainPlugin,
+            RubyPlugin,
+            EmailSpawnerPlugin,
+            ElectricityPlugin,
+        ))
         .add_systems(Startup, setup.after(setup_common))
         .run();
 }

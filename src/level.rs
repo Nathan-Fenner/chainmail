@@ -19,13 +19,13 @@ use crate::{
     laser::Laser,
     mainframe::{Mainframe, WinMainframe},
     player::Player,
-    ruby::Ruby,
+    ruby::{MakeRuby, Ruby},
     spawn_point::SpawnPoint,
     well::{DespawnFalling, Well},
     zipline::Zipline,
 };
 
-const STARTING_LEVEL: &str = "level_big.png";
+const STARTING_LEVEL: &str = "level_1.png";
 
 pub struct LevelPlugin;
 
@@ -991,7 +991,7 @@ fn load_level(
             commands.spawn((
                 // No level tag on the player
                 Mesh3d(common.mesh_sphere.clone()),
-                MeshMaterial3d(common.material_gray.clone()),
+                MeshMaterial3d(common.material_pink.clone()),
                 Transform::from_translation(info.pos + Vec3::new(0.0, 2., 0.)),
                 RigidBody::Dynamic,
                 Collider::sphere(0.45),
@@ -1173,9 +1173,13 @@ fn load_level(
         LevelSpawner::new(|commands, info| {
             commands.spawn((
                 level_tag.clone(),
-                Mesh3d(common.mesh_ruby.clone()),
-                MeshMaterial3d(common.material_ruby.clone()),
-                Transform::from_translation(info.pos + Vec3::Y),
+                MakeRuby,
+                SceneRoot(common.scene_ruby.clone()),
+                // Mesh3d(common.mesh_ruby.clone()),
+                // MeshMaterial3d(common.material_ruby.clone()),
+                Transform::from_translation(info.pos + Vec3::Y)
+                    .with_scale(Vec3::splat(0.5))
+                    .looking_to(Vec3::Z + Vec3::Y, Vec3::Y),
                 Ruby,
             ));
         })

@@ -7,7 +7,7 @@ pub struct RubyPlugin;
 impl Plugin for RubyPlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(CanZip { can_zip: false })
-            .add_systems(Update, collect_ruby_system);
+            .add_systems(Update, (collect_ruby_system, make_ruby_system));
     }
 }
 
@@ -53,6 +53,29 @@ pub fn collect_ruby_system(
                 .with_scale(Vec3::splat(6.)),
                 DoesNotClearFog,
             ));
+        }
+    }
+}
+
+#[derive(Component)]
+pub struct MakeRuby;
+
+fn make_ruby_system(
+    mut commands: Commands,
+    mut material: Query<&mut MeshMaterial3d<StandardMaterial>>,
+    children: Query<&Children>,
+    make_ruby: Query<Entity, With<MakeRuby>>,
+    common: Res<Common>,
+) {
+    for ruby in make_ruby.iter() {
+        if let Ok(mut material) = material.get_mut(ruby) {
+            material.0 = common.material_ruby.clone();
+        }
+
+        if let Ok(children) = children.get(ruby) {
+            for child in children.iter() {
+                commands.entity(child).insert(MakeRuby);
+            }
         }
     }
 }

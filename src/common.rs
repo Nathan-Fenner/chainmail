@@ -9,6 +9,7 @@ pub struct Common {
     pub mesh_plane: Handle<Mesh>,
     pub mesh_small_sphere: Handle<Mesh>,
     pub material_gray: Handle<StandardMaterial>,
+    pub material_pink: Handle<StandardMaterial>,
     pub material_dark_gray: Handle<StandardMaterial>,
     pub material_yellow: Handle<StandardMaterial>,
     pub material_dark_blue: Handle<StandardMaterial>,
@@ -31,12 +32,14 @@ pub struct Common {
     pub material_icon_low_power: Handle<StandardMaterial>,
 
     pub scene_computer: Handle<Scene>,
+    pub scene_ruby: Handle<Scene>,
 
     pub material_tutorial_move: Handle<StandardMaterial>,
     pub material_tutorial_interact: Handle<StandardMaterial>,
     pub material_tutorial_zip: Handle<StandardMaterial>,
 
     pub material_you_win: Handle<StandardMaterial>,
+    pub material_email: Handle<StandardMaterial>,
 }
 
 #[derive(Default)]
@@ -77,6 +80,11 @@ pub fn setup_common(
         }),
         material_yellow: materials.add(StandardMaterial {
             base_color: Color::linear_rgb(0.9, 0.8, 0.2),
+            perceptual_roughness: 1.0,
+            ..default()
+        }),
+        material_pink: materials.add(StandardMaterial {
+            base_color: Color::linear_rgb(1.0, 0.5, 0.7),
             perceptual_roughness: 1.0,
             ..default()
         }),
@@ -171,6 +179,7 @@ pub fn setup_common(
         image_fwd: asset_server.load("email_fwd.png"),
 
         scene_computer: asset_server.load("computer_console.glb#Scene0"),
+        scene_ruby: asset_server.load("ruby.glb#Scene0"),
 
         material_tutorial_move: materials.add(StandardMaterial {
             base_color_texture: Some(asset_server.load("tutorial_move.png")),
@@ -193,6 +202,15 @@ pub fn setup_common(
         material_you_win: materials.add(StandardMaterial {
             base_color_texture: Some(asset_server.load("win_message.png")),
             perceptual_roughness: 1.0,
+            ..default()
+        }),
+
+        material_email: materials.add(StandardMaterial {
+            base_color_texture: Some(asset_server.load("email.png")),
+            alpha_mode: AlphaMode::Mask(0.5),
+            cull_mode: None,
+            perceptual_roughness: 1.0,
+            double_sided: true,
             ..default()
         }),
     });

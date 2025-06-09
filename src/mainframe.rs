@@ -2,6 +2,7 @@ use bevy::{platform::collections::HashSet, prelude::*};
 
 use crate::{
     common::Common,
+    email_spawner::EmailSpawner,
     interactible::{Activated, Interactible},
     level::{LevelName, LevelTag},
 };
@@ -118,6 +119,21 @@ pub fn recolor_computer(
             if !has_glow.contains(entity) {
                 // Spawn a glow for the computer
                 commands.entity(entity).insert(HasGlow);
+                if is_win {
+                    commands.entity(entity).insert(EmailSpawner {
+                        rate: 0.1,
+                        dir: 0.0,
+                        debounce: 0.0,
+                        scale: 3.0,
+                    });
+                } else {
+                    commands.entity(entity).insert(EmailSpawner {
+                        rate: 0.8,
+                        dir: 0.0,
+                        debounce: 0.0,
+                        scale: 1.0,
+                    });
+                }
                 commands.entity(entity).with_child((
                     Mesh3d(common.mesh_cube.clone()),
                     MeshMaterial3d(if is_win {
