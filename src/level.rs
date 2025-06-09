@@ -8,7 +8,7 @@ use bevy::{
 };
 
 use crate::{
-    chain::ChainLink,
+    chain::{self, ChainLink},
     common::Common,
     door::Door,
     draggable::Draggable,
@@ -1182,7 +1182,7 @@ fn spawn_chain<'a>(
     chain_positions: &HashMap<IVec2, Vec3>,
     starting_chain_ball: IVec2,
     visited: &'a mut HashMap<IVec2, bool>,
-) -> (Vec<IVec2>, &'a HashMap<IVec2, bool>)
+) -> (Vec<IVec2>)
 {
     //valid chain dirs
     let dirs= [
@@ -1206,7 +1206,7 @@ fn spawn_chain<'a>(
         visited.insert(curr_chain_ball, true);
     }
 
-    return (chain_list, visited)
+    return chain_list
 }
 
 fn spawn_chains(
@@ -1218,6 +1218,17 @@ fn spawn_chains(
     let mut chain_entities: HashMap<IVec2, Entity> = default();
 
     let mut chain_ends: Vec<(Entity, Vec3)> = Vec::new();
+
+    let mut visited: HashMap<IVec2, bool> = HashMap::new();
+    let mut chain_locs: Vec<Vec<IVec2>> = Vec::new();
+
+    for (chain_ball, _) in chain_positions.iter() {
+        //call spawn chain when encountering and unvisited chainball
+        if !visited.contains_key(chain_ball){
+            let chain_loc = spawn_chain(chain_positions, *chain_ball, &mut visited);
+            chain_locs.push(chain_loc);
+        }
+    }
 
     for (chain_ball, chain_pos) in chain_positions.iter() {
         let collision_layer = if (chain_ball.x + chain_ball.y) % 2 == 0 {
