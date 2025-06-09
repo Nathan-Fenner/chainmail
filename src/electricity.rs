@@ -85,7 +85,7 @@ pub fn outlet_interactive_system(
             commands
                 .entity(outlet)
                 // Higher priority than dropping the dragged item
-                .insert(Interactible::radius(2.0).with_priority(6));
+                .insert(Interactible::radius(1.2).with_priority(6));
         }
 
         for (outlet_entity, mut activated, mut outlet) in activate_outlet.iter_mut() {

@@ -23,7 +23,7 @@ use crate::{
     zipline::Zipline,
 };
 
-const STARTING_LEVEL: &str = "level_5.png";
+const STARTING_LEVEL: &str = "level_7.png";
 
 pub struct LevelPlugin;
 
@@ -1410,7 +1410,7 @@ fn spawn_chains(
                         .with_local_anchor_2(-delta / 2.0)
                         .with_linear_velocity_damping(0.5)
                         .with_angular_velocity_damping(0.5)
-                        .with_compliance(0.05),
+                        .with_compliance(0.02),
                     ChainLink(chain_entities[chain_ball], chain_entities[&other]),
                     Mesh3d(common.mesh_cube.clone()),
                     MeshMaterial3d(common.material_dark_gray.clone()),
