@@ -100,20 +100,31 @@ fn remember_compute_system(
 #[derive(Component)]
 pub struct HasGlow;
 
+#[derive(Component)]
+pub struct WinMainframe;
+
 pub fn recolor_computer(
     mut commands: Commands,
-    mut mainframe: Query<(Entity, &Mainframe, &mut PointLight), Changed<Mainframe>>,
+    mut mainframe: Query<
+        (Entity, &Mainframe, &mut PointLight, Option<&WinMainframe>),
+        Changed<Mainframe>,
+    >,
     common: Res<Common>,
     has_glow: Query<&HasGlow>,
 ) {
-    for (entity, mainframe, mut light) in mainframe.iter_mut() {
+    for (entity, mainframe, mut light, is_win) in mainframe.iter_mut() {
+        let is_win = is_win.is_some();
         if mainframe.active {
             if !has_glow.contains(entity) {
                 // Spawn a glow for the computer
                 commands.entity(entity).insert(HasGlow);
                 commands.entity(entity).with_child((
                     Mesh3d(common.mesh_cube.clone()),
-                    MeshMaterial3d(common.material_active.clone()),
+                    MeshMaterial3d(if is_win {
+                        common.material_you_win.clone()
+                    } else {
+                        common.material_active.clone()
+                    }),
                     Transform::from_translation(Vec3::Y * 1.4)
                         .with_scale(Vec3::new(1.0, 0.1, 1.2))
                         .looking_to(Vec3::Z + Vec3::Y * 0.7, Vec3::Y),

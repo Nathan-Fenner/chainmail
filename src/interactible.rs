@@ -3,6 +3,7 @@ use bevy::prelude::*;
 use crate::{
     common::{Common, setup_common},
     player::{Player, PlayerCamera},
+    ruby::CanZip,
 };
 
 /// A component for things which can be interacted with.
@@ -14,6 +15,7 @@ pub struct Interactible {
     pub dot_offset: Vec3,
 
     pub icon: Option<Handle<StandardMaterial>>,
+    pub needs_ruby: bool,
 }
 
 impl Interactible {
@@ -24,6 +26,7 @@ impl Interactible {
             priority: 0,
             dot_offset: Vec3::ZERO,
             icon: None,
+            needs_ruby: false,
         }
     }
     /// Update the priority of the input.
@@ -40,6 +43,12 @@ impl Interactible {
     pub fn with_dot_offset(self, offset: Vec3) -> Self {
         Self {
             dot_offset: offset,
+            ..self
+        }
+    }
+    pub fn needs_ruby(self) -> Self {
+        Self {
+            needs_ruby: true,
             ..self
         }
     }
@@ -113,6 +122,7 @@ fn set_nearest_interactible_system(
     player: Query<&GlobalTransform, With<Player>>,
     interactibles: Query<(Entity, &GlobalTransform, &Interactible)>,
     mut nearest_interactible: ResMut<NearestInteractible>,
+    has_ruby: Res<CanZip>,
 ) {
     let found_nearest: Option<Entity> = (move || {
         let Ok(player_transform) = player.single() else {
@@ -128,6 +138,10 @@ fn set_nearest_interactible_system(
 
         let mut closest: Option<Candidate> = None;
         for (entity, transform, interactible) in interactibles.iter() {
+            if interactible.needs_ruby && !has_ruby.can_zip {
+                // Skip this before collect ruby
+                continue;
+            }
             let distance = player_transform
                 .translation()
                 .distance(transform.translation())

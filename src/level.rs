@@ -15,15 +15,17 @@ use crate::{
     electricity::{Outlet, Plug, PowerSource, Wire},
     evil_robot::{EvilRobot, Spinning},
     fog::DoesNotClearFog,
+    interactible::Interactible,
     laser::Laser,
-    mainframe::Mainframe,
+    mainframe::{Mainframe, WinMainframe},
     player::Player,
+    ruby::Ruby,
     spawn_point::SpawnPoint,
     well::{DespawnFalling, Well},
     zipline::Zipline,
 };
 
-const STARTING_LEVEL: &str = "level_7.png";
+const STARTING_LEVEL: &str = "level_big.png";
 
 pub struct LevelPlugin;
 
@@ -76,7 +78,9 @@ fn setup_levels_system(mut commands: Commands, asset_server: Res<AssetServer>) {
         "level_5.png",
         "level_6.png",
         "level_7.png",
+        "level_8.png",
         "rails_map.png",
+        "level_big.png",
     ];
 
     commands.insert_resource(Levels {
@@ -413,6 +417,7 @@ enum Tile {
     Hallway(i32),
     Wall,
     ComputerMainframe,
+    ComputerMainframeBig,
     Outside,
     Zappy,
     Well,
@@ -429,12 +434,13 @@ enum Tile {
     FloorWire,
     CrossFloorWire,
     WallWire,
+    Ruby,
 }
 
 /// Converts from the color of the pixel to the type of tile.
 fn color_to_tile(color: &Color) -> Option<Tile> {
     #[allow(clippy::eq_op)]
-    static MAPPING: [(Color, Tile); 24] = [
+    static MAPPING: [(Color, Tile); 26] = [
         // White == Floor
         (Color::linear_rgb(1., 1., 1.), Tile::Floor),
         // Light Blue == Elevated Floor
@@ -452,6 +458,11 @@ fn color_to_tile(color: &Color) -> Option<Tile> {
         (Color::linear_rgb(0., 0., 0.), Tile::Wall),
         // Green == Computer Mainframe
         (Color::linear_rgb(0., 1., 0.), Tile::ComputerMainframe),
+        // Green == Computer Mainframe
+        (
+            Color::linear_rgb(101. / 255., 1., 0.),
+            Tile::ComputerMainframeBig,
+        ),
         // Light Blue == Outside
         (Color::linear_rgb(0.5, 0.5, 0.835), Tile::Outside),
         // Blue == Zappy
@@ -502,6 +513,11 @@ fn color_to_tile(color: &Color) -> Option<Tile> {
             Color::linear_rgb(51.0 / 255.0, 109.0 / 255.0, 136.0 / 255.0),
             Tile::WallWire,
         ),
+        // Ruby
+        (
+            Color::linear_rgb(201.0 / 255.0, 70.0 / 255.0, 174.0 / 255.0),
+            Tile::Ruby,
+        ),
     ];
 
     let color_distance_scale = 10_000;
@@ -529,6 +545,7 @@ fn is_electrical(tile: &Tile) -> bool {
             | Tile::PowerSource
             | Tile::Outlet
             | Tile::ComputerMainframe
+            | Tile::ComputerMainframeBig
             | Tile::Door
             | Tile::Zappy
     )
@@ -759,22 +776,70 @@ fn load_level(
                     location: info.grid,
                 },
             ));
-
-            // commands.spawn((
-            //     level_tag.clone(),
-            //     Mesh3d(common.mesh_cube.clone()),
-            //     // MeshMaterial3d(common.material_gray.clone()),
-            //     Transform::from_translation(info.pos + Vec3::Y).with_scale(Vec3::new(1., 1.4, 1.)),
-            //     RigidBody::Static,
-            //     Collider::cuboid(1., 1., 1.),
-            //     Mainframe {
-            //         active: false,
-            //         has_charge: false,
-            //     },
-            // ));
         })
         .lift_floor()
         .for_tile(Tile::ComputerMainframe),
+        LevelSpawner::new(|commands, info| {
+            // Which way should it face?
+            fn is_floor(t: Tile) -> bool {
+                matches!(
+                    t,
+                    Tile::Floor
+                        | Tile::FloorWire
+                        | Tile::CrossFloorWire
+                        | Tile::Outlet
+                        | Tile::Zipline
+                )
+            }
+
+            fn is_wall(t: Tile) -> bool {
+                matches!(t, Tile::Wall | Tile::WallWire)
+            }
+
+            let candidates = [IVec2::X, IVec2::Y, IVec2::NEG_X, IVec2::NEG_Y];
+
+            let facing_direction = candidates
+                .iter()
+                .max_by_key(|&direction| {
+                    let mut score = 0;
+                    let forward = info.grid + direction;
+                    if is_floor(tile_grid[&forward]) {
+                        score += 999;
+                    }
+                    if tile_grid[&forward] == Tile::Crate {
+                        score += 500;
+                    }
+                    if is_wall(tile_grid[&(info.grid - direction)]) {
+                        score += 100;
+                    }
+                    score
+                })
+                .unwrap();
+
+            commands.spawn((
+                level_tag.clone(),
+                SceneRoot(common.scene_computer.clone()),
+                Transform::from_translation(info.pos + Vec3::Y * 0.5)
+                    .looking_to(
+                        Vec3::new(facing_direction.x as f32, 0.0, facing_direction.y as f32),
+                        Vec3::Y,
+                    )
+                    .with_scale(Vec3::splat(4.)),
+                RigidBody::Static,
+                Collider::cuboid(1., 1.5, 1.),
+                Mainframe {
+                    active: false,
+                    has_charge: false,
+                    location: info.grid,
+                },
+                WinMainframe,
+                Interactible::radius(6.)
+                    .with_priority(4)
+                    .with_dot_offset(Vec3::Y * 7.),
+            ));
+        })
+        .lift_floor()
+        .for_tile(Tile::ComputerMainframeBig),
         // Light Blue == Outside
         LevelSpawner::new(|_commands, _info| {
             // Nothing at all
@@ -1026,9 +1091,11 @@ fn load_level(
                 let mut must_cross = false;
                 loop {
                     let at = info.grid + dir * dist;
-                    if tile_grid[&at] == Tile::Wall {
+
+                    if dist > 6 {
                         break;
                     }
+
                     match tile_grid[&at] {
                         Tile::Wall | Tile::Outside => {
                             break;
@@ -1048,6 +1115,8 @@ fn load_level(
                     dist += 1;
                 }
                 if must_cross {
+                    spawn_floor_wire_segment(commands, common, &level_tag, info.pos, dir);
+
                     println!("must cross {:?} at dist {:?}", dir, dist);
                     for i in 1..dist {
                         let spawn_at = info.grid + dir * i;
@@ -1077,20 +1146,17 @@ fn load_level(
                 common.material_invisible.clone(),
             );
 
-            let width = 0.3;
-            let extent = 0.7;
-
             for (dx, dz) in [(-1, 0), (1, 0), (0, -1), (0, 1)] {
                 let neighbor = &tile_grid[&(info.grid + IVec2::new(dx, dz))];
                 if is_electrical(neighbor) {
                     let center = info.pos + Vec3::Y * 1.5;
-                    let shift = Vec3::new(dx as f32, 0., dz as f32) * extent / 2.;
+                    let shift = Vec3::new(dx as f32, 0., dz as f32) * WIRE_EXTENT / 2.;
 
-                    let mut scale = Vec3::new(width, 0.2, width);
+                    let mut scale = Vec3::new(WIRE_WIDTH, 0.2, WIRE_WIDTH);
                     if dx != 0 {
-                        scale.x = extent + width;
+                        scale.x = WIRE_EXTENT + WIRE_WIDTH;
                     } else {
-                        scale.z = extent + width;
+                        scale.z = WIRE_EXTENT + WIRE_WIDTH;
                     }
 
                     commands.spawn((
@@ -1104,6 +1170,16 @@ fn load_level(
             }
         })
         .for_tile(Tile::WallWire),
+        LevelSpawner::new(|commands, info| {
+            commands.spawn((
+                level_tag.clone(),
+                Mesh3d(common.mesh_ruby.clone()),
+                MeshMaterial3d(common.material_ruby.clone()),
+                Transform::from_translation(info.pos + Vec3::Y),
+                Ruby,
+            ));
+        })
+        .for_tile(Tile::Ruby),
     ]
     .into_iter()
     .collect();
@@ -1259,7 +1335,7 @@ fn spawn_zipline(
 
         commands.spawn((
             level_tag.clone(),
-            MeshMaterial3d(common.material_yellow.clone()),
+            MeshMaterial3d(common.material_ruby.clone()),
             Mesh3d(common.mesh_cube.clone()),
             Transform::from_translation((end_a + end_b) / 2.)
                 .with_scale(Vec3::new(0.4, 0.4, end_a.distance(end_b) + 0.4))
@@ -1420,6 +1496,35 @@ fn spawn_chains(
     }
 }
 
+const WIRE_WIDTH: f32 = 0.3;
+const WIRE_EXTENT: f32 = 0.7;
+
+fn spawn_floor_wire_segment(
+    commands: &mut Commands,
+    common: &Common,
+    level_tag: &LevelTag,
+    pos: Vec3,
+    dir: IVec2,
+) {
+    let center = pos + Vec3::Y * 0.5;
+    let shift = Vec3::new(dir.x as f32, 0., dir.y as f32) * WIRE_EXTENT / 2.;
+
+    let mut scale = Vec3::new(WIRE_WIDTH, 0.2, WIRE_WIDTH);
+    if dir.x != 0 {
+        scale.x = WIRE_EXTENT + WIRE_WIDTH;
+    } else {
+        scale.z = WIRE_EXTENT + WIRE_WIDTH;
+    }
+
+    commands.spawn((
+        level_tag.clone(),
+        Mesh3d(common.mesh_cube.clone()),
+        MeshMaterial3d(common.material_electricity.clone()),
+        Transform::from_translation(center + shift).with_scale(scale),
+        Wire,
+    ));
+}
+
 fn spawn_floor_wire(
     commands: &mut Commands,
     common: &Common,
@@ -1428,29 +1533,10 @@ fn spawn_floor_wire(
     grid: IVec2,
     pos: Vec3,
 ) {
-    let width = 0.3;
-    let extent = 0.7;
-
     for (dx, dz) in [(-1, 0), (1, 0), (0, -1), (0, 1)] {
         let neighbor = &tile_grid[&(grid + IVec2::new(dx, dz))];
         if is_electrical(neighbor) {
-            let center = pos + Vec3::Y * 0.5;
-            let shift = Vec3::new(dx as f32, 0., dz as f32) * extent / 2.;
-
-            let mut scale = Vec3::new(width, 0.2, width);
-            if dx != 0 {
-                scale.x = extent + width;
-            } else {
-                scale.z = extent + width;
-            }
-
-            commands.spawn((
-                level_tag.clone(),
-                Mesh3d(common.mesh_cube.clone()),
-                MeshMaterial3d(common.material_electricity.clone()),
-                Transform::from_translation(center + shift).with_scale(scale),
-                Wire,
-            ));
+            spawn_floor_wire_segment(commands, common, level_tag, pos, IVec2::new(dx, dz));
         }
     }
 }

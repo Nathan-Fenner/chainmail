@@ -9,7 +9,7 @@ use crate::{
 const ATTACH_RADIUS: f32 = 1.9;
 
 #[derive(Default, Component)]
-#[require(Interactible = Interactible::radius(ATTACH_RADIUS))]
+#[require(Interactible = Interactible::radius(ATTACH_RADIUS).needs_ruby())]
 pub struct Zipline {
     pub nodes: Vec<Vec3>,
     pub active: Option<ZipDirection>,

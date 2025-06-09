@@ -3,6 +3,7 @@ use bevy::prelude::*;
 #[derive(Resource)]
 pub struct Common {
     pub mesh_cube: Handle<Mesh>,
+    pub mesh_ruby: Handle<Mesh>,
     pub mesh_sphere: Handle<Mesh>,
     pub mesh_cylinder: Handle<Mesh>,
     pub mesh_plane: Handle<Mesh>,
@@ -21,8 +22,10 @@ pub struct Common {
     pub material_outlet: Handle<StandardMaterial>,
     pub material_zappy_boy: Handle<StandardMaterial>,
     pub material_zappy_field: Handle<StandardMaterial>,
+    pub material_ruby: Handle<StandardMaterial>,
 
     pub image_e: Handle<Image>,
+    pub image_fwd: Handle<Image>,
 
     pub material_icon_e: Handle<StandardMaterial>,
     pub material_icon_low_power: Handle<StandardMaterial>,
@@ -31,6 +34,9 @@ pub struct Common {
 
     pub material_tutorial_move: Handle<StandardMaterial>,
     pub material_tutorial_interact: Handle<StandardMaterial>,
+    pub material_tutorial_zip: Handle<StandardMaterial>,
+
+    pub material_you_win: Handle<StandardMaterial>,
 }
 
 #[derive(Default)]
@@ -54,6 +60,7 @@ pub fn setup_common(
 
     commands.insert_resource(Common {
         mesh_cube: meshes.add(Cuboid::default()),
+        mesh_ruby: meshes.add(Cone::default()),
         mesh_plane: meshes.add(Plane3d::new(-Vec3::Z, Vec2::new(0.5, 0.5))),
         mesh_sphere: meshes.add(Sphere::default()),
         mesh_cylinder: meshes.add(Cylinder::default()),
@@ -71,6 +78,12 @@ pub fn setup_common(
         material_yellow: materials.add(StandardMaterial {
             base_color: Color::linear_rgb(0.9, 0.8, 0.2),
             perceptual_roughness: 1.0,
+            ..default()
+        }),
+        material_ruby: materials.add(StandardMaterial {
+            base_color: Color::linear_rgb(1.0, 0.1, 0.2),
+            perceptual_roughness: 0.2,
+            reflectance: 0.3,
             ..default()
         }),
         material_dark_blue: materials.add(StandardMaterial {
@@ -152,7 +165,10 @@ pub fn setup_common(
             alpha_mode: AlphaMode::Mask(0.5),
             ..default()
         }),
+
         image_e,
+
+        image_fwd: asset_server.load("email_fwd.png"),
 
         scene_computer: asset_server.load("computer_console.glb#Scene0"),
 
@@ -164,6 +180,18 @@ pub fn setup_common(
 
         material_tutorial_interact: materials.add(StandardMaterial {
             base_color_texture: Some(asset_server.load("tutorial_interact.png")),
+            perceptual_roughness: 1.0,
+            ..default()
+        }),
+
+        material_tutorial_zip: materials.add(StandardMaterial {
+            base_color_texture: Some(asset_server.load("tutorial_zip.png")),
+            perceptual_roughness: 1.0,
+            ..default()
+        }),
+
+        material_you_win: materials.add(StandardMaterial {
+            base_color_texture: Some(asset_server.load("win_message.png")),
             perceptual_roughness: 1.0,
             ..default()
         }),

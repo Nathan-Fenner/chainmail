@@ -6,10 +6,12 @@ pub mod electricity;
 pub mod evil_robot;
 pub mod fog;
 pub mod interactible;
+pub mod intro;
 pub mod laser;
 pub mod level;
 pub mod mainframe;
 pub mod player;
+pub mod ruby;
 pub mod spawn_point;
 pub mod well;
 pub mod zipline;
@@ -35,8 +37,8 @@ use spawn_point::SpawnPointPlugin;
 use well::WellPlugin;
 
 use crate::{
-    chain::ChainPlugin, electricity::ElectricityPlugin, fog::FogPlugin, laser::LaserPlugin,
-    level::LevelPlugin, zipline::ZiplinePlugin,
+    chain::ChainPlugin, electricity::ElectricityPlugin, fog::FogPlugin, intro::IntroPlugin,
+    laser::LaserPlugin, level::LevelPlugin, ruby::RubyPlugin, zipline::ZiplinePlugin,
 };
 
 fn main() {
@@ -58,7 +60,7 @@ fn main() {
             DoorPlugin,
             FogPlugin,
         ))
-        .add_plugins((ChainPlugin, ElectricityPlugin))
+        .add_plugins((IntroPlugin, ChainPlugin, RubyPlugin, ElectricityPlugin))
         .add_systems(Startup, setup.after(setup_common))
         .run();
 }

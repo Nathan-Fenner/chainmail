@@ -7,7 +7,7 @@ use crate::{
 };
 
 const PICK_RADIUS: f32 = 1.9;
-const DROP_RADIUS: f32 = 2.0;
+const DROP_RADIUS: f32 = 2.5;
 
 #[derive(Default, Component)]
 #[require(Interactible = Interactible::radius(PICK_RADIUS))]
@@ -88,7 +88,7 @@ pub fn run_draggable_system(
         }
 
         // The strength of the pulling/pushing force, at the max distance.
-        let pull_strength = 10.;
+        let pull_strength = 12.;
         // The strength of XZ velocity damping.
         let damp_strength = 0.5;
         // The distance at which pulling strength reaches 100%.
