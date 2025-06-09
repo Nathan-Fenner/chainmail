@@ -899,10 +899,25 @@ fn load_level(
                 RigidBody::Static,
                 Collider::cuboid(1.0, 1.0, 1.0),
                 Door {
-                    open_at: info.pos + Vec3::Y * 0.1,
+                    open_at: info.pos - Vec3::Y * 0.1,
                     closed_at: info.pos + Vec3::Y,
                 },
                 Wire,
+            ));
+            // Door base
+            commands.spawn((
+                level_tag.clone(),
+                Mesh3d(common.mesh_cube.clone()),
+                MeshMaterial3d(common.material_dark_gray.clone()),
+                Transform::from_translation(info.pos + Vec3::Y * 0.1)
+                    .with_scale(Vec3::new(1.1, 1.0, 1.1)),
+            ));
+            commands.spawn((
+                level_tag.clone(),
+                Mesh3d(common.mesh_cube.clone()),
+                MeshMaterial3d(common.material_electricity.clone()),
+                Transform::from_translation(info.pos + Vec3::Y * 0.15)
+                    .with_scale(Vec3::new(0.5, 1.0, 0.5)),
             ));
 
             // invisible blocker above that (like black wall)
