@@ -19,9 +19,11 @@ use crate::{
     mainframe::Mainframe,
     player::Player,
     spawn_point::SpawnPoint,
-    well::Well,
+    well::{DespawnFalling, Well},
     zipline::Zipline,
 };
+
+const STARTING_LEVEL: &str = "level_5.png";
 
 pub struct LevelPlugin;
 
@@ -50,6 +52,12 @@ pub struct Levels {
 #[derive(Component, Clone, Eq, PartialEq, Debug, Hash)]
 pub struct LevelTag {
     pub level: LevelName,
+}
+
+impl LevelTag {
+    pub fn is_level(&self, name: &str) -> bool {
+        self.level.level_name == name
+    }
 }
 
 impl Plugin for LevelPlugin {
@@ -159,7 +167,7 @@ fn load_level_system(
     // If there is no player, load the first level.
 
     if !*has_loaded_player {
-        let first_level = LevelName::from_string("level_1.png".to_string());
+        let first_level = LevelName::from_string(STARTING_LEVEL.to_string());
         load_level(
             Vec3::ZERO,
             LevelTag {
@@ -419,13 +427,14 @@ enum Tile {
     Outlet,
     PowerSource,
     FloorWire,
+    CrossFloorWire,
     WallWire,
 }
 
 /// Converts from the color of the pixel to the type of tile.
 fn color_to_tile(color: &Color) -> Option<Tile> {
     #[allow(clippy::eq_op)]
-    static MAPPING: [(Color, Tile); 23] = [
+    static MAPPING: [(Color, Tile); 24] = [
         // White == Floor
         (Color::linear_rgb(1., 1., 1.), Tile::Floor),
         // Light Blue == Elevated Floor
@@ -483,6 +492,11 @@ fn color_to_tile(color: &Color) -> Option<Tile> {
             Color::linear_rgb(66.0 / 255.0, 130.0 / 255.0, 111.0 / 255.0),
             Tile::FloorWire,
         ),
+        // Yellowish Teal == Cross Floor Wire
+        (
+            Color::linear_rgb(143.0 / 255.0, 178.0 / 255.0, 111.0 / 255.0),
+            Tile::CrossFloorWire,
+        ),
         // Darker Teal == Wall Wire
         (
             Color::linear_rgb(51.0 / 255.0, 109.0 / 255.0, 136.0 / 255.0),
@@ -510,6 +524,7 @@ fn is_electrical(tile: &Tile) -> bool {
     matches!(
         tile,
         Tile::FloorWire
+            | Tile::CrossFloorWire
             | Tile::WallWire
             | Tile::PowerSource
             | Tile::Outlet
@@ -517,6 +532,30 @@ fn is_electrical(tile: &Tile) -> bool {
             | Tile::Door
             | Tile::Zappy
     )
+}
+
+fn spawn_text(commands: &mut Commands, shift: Vec3, level_tag: &LevelTag, common: &Common) {
+    if level_tag.is_level("level_1.png") {
+        commands.spawn((
+            level_tag.clone(),
+            Mesh3d(common.mesh_plane.clone()),
+            MeshMaterial3d(common.material_tutorial_move.clone()),
+            Transform::from_translation(shift + Vec3::new(36.0, 5.0, 9.0))
+                .looking_to(Vec3::Y + Vec3::Z * 0.9, -Vec3::Y)
+                .with_scale(Vec3::splat(6.)),
+            DoesNotClearFog,
+        ));
+
+        commands.spawn((
+            level_tag.clone(),
+            Mesh3d(common.mesh_plane.clone()),
+            MeshMaterial3d(common.material_tutorial_interact.clone()),
+            Transform::from_translation(shift + Vec3::new(28.0, 5.0, 9.0))
+                .looking_to(Vec3::Y + Vec3::Z * 0.9, -Vec3::Y)
+                .with_scale(Vec3::splat(6.)),
+            DoesNotClearFog,
+        ));
+    }
 }
 
 fn load_level(
@@ -528,6 +567,8 @@ fn load_level(
     should_spawn_player: bool,
     junction_to_levels: &HashMap<HallwayPattern, Vec<LevelName>>,
 ) {
+    spawn_text(commands, shift, &level_tag, common);
+
     struct LevelSpawner<'a> {
         spawn: Box<dyn FnMut(&mut Commands, &SpawnInfo) + 'a>,
         skip_floor: bool,
@@ -671,7 +712,11 @@ fn load_level(
             fn is_floor(t: Tile) -> bool {
                 matches!(
                     t,
-                    Tile::Floor | Tile::FloorWire | Tile::Outlet | Tile::Zipline
+                    Tile::Floor
+                        | Tile::FloorWire
+                        | Tile::CrossFloorWire
+                        | Tile::Outlet
+                        | Tile::Zipline
                 )
             }
 
@@ -685,8 +730,12 @@ fn load_level(
                 .iter()
                 .max_by_key(|&direction| {
                     let mut score = 0;
-                    if is_floor(tile_grid[&(info.grid + direction)]) {
+                    let forward = info.grid + direction;
+                    if is_floor(tile_grid[&forward]) {
                         score += 999;
+                    }
+                    if tile_grid[&forward] == Tile::Crate {
+                        score += 500;
                     }
                     if is_wall(tile_grid[&(info.grid - direction)]) {
                         score += 100;
@@ -767,7 +816,7 @@ fn load_level(
                 level_tag.clone(),
                 Mesh3d(common.mesh_sphere.clone()),
                 MeshMaterial3d(common.material_dark_gray.clone()),
-                Transform::from_translation(info.pos),
+                Transform::from_translation(info.pos - Vec3::Y * 0.5),
                 GlobalTransform::default(),
                 Well,
             ));
@@ -814,6 +863,7 @@ fn load_level(
                 RigidBody::Dynamic,
                 Collider::cuboid(1.0, 1.0, 1.0),
                 Draggable::default(),
+                DespawnFalling,
             ));
         })
         .lift_floor()
@@ -965,6 +1015,56 @@ fn load_level(
             );
         })
         .for_tile(Tile::FloorWire),
+        LevelSpawner::new(|commands, info| {
+            spawn_floor_wire(
+                commands, common, &tile_grid, &level_tag, info.grid, info.pos,
+            );
+
+            // Spawn wires in any direction that meets another cross wire.
+            for dir in [IVec2::X, IVec2::Y] {
+                let mut dist = 1;
+                let mut must_cross = false;
+                loop {
+                    let at = info.grid + dir * dist;
+                    if tile_grid[&at] == Tile::Wall {
+                        break;
+                    }
+                    match tile_grid[&at] {
+                        Tile::Wall | Tile::Outside => {
+                            break;
+                        }
+                        Tile::CrossFloorWire => {
+                            must_cross = true;
+                            break;
+                        }
+                        _ if is_electrical(&tile_grid[&at]) => {
+                            // A non-crossing thing.
+                            break;
+                        }
+                        _ => {
+                            // Do nothing
+                        }
+                    }
+                    dist += 1;
+                }
+                if must_cross {
+                    println!("must cross {:?} at dist {:?}", dir, dist);
+                    for i in 1..dist {
+                        let spawn_at = info.grid + dir * i;
+                        println!(" i = {i}, spawn_at = {:?}", spawn_at);
+                        spawn_floor_wire(
+                            commands,
+                            common,
+                            &tile_grid,
+                            &level_tag,
+                            info.grid + dir * i,
+                            info.pos + dir.as_vec2().extend(0.0).xzy() * i as f32,
+                        );
+                    }
+                }
+            }
+        })
+        .for_tile(Tile::CrossFloorWire),
         LevelSpawner::new(|commands, info| {
             spawn_cube(
                 commands,

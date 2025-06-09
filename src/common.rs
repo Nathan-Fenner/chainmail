@@ -28,6 +28,9 @@ pub struct Common {
     pub material_icon_low_power: Handle<StandardMaterial>,
 
     pub scene_computer: Handle<Scene>,
+
+    pub material_tutorial_move: Handle<StandardMaterial>,
+    pub material_tutorial_interact: Handle<StandardMaterial>,
 }
 
 #[derive(Default)]
@@ -152,5 +155,17 @@ pub fn setup_common(
         image_e,
 
         scene_computer: asset_server.load("computer_console.glb#Scene0"),
+
+        material_tutorial_move: materials.add(StandardMaterial {
+            base_color_texture: Some(asset_server.load("tutorial_move.png")),
+            perceptual_roughness: 1.0,
+            ..default()
+        }),
+
+        material_tutorial_interact: materials.add(StandardMaterial {
+            base_color_texture: Some(asset_server.load("tutorial_interact.png")),
+            perceptual_roughness: 1.0,
+            ..default()
+        }),
     });
 }

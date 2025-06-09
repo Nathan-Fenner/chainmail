@@ -66,7 +66,7 @@ fn clear_fog_system(
 
     const FOG_SIZE: f32 = GRID_SPACING * FOG_GRID_SIZE as f32;
 
-    let max_scale = 1.5;
+    let max_scale = 2.75;
 
     for (mut fog, mut fog_speed) in fog.iter_mut() {
         if fog.translation.x < player.x - FOG_SIZE / 2. {
@@ -107,6 +107,6 @@ fn clear_fog_system(
 
         fog.scale = fog
             .scale
-            .lerp(Vec3::splat(target_scale) * Vec3::new(1.1, 2.6, 1.1), 0.2);
+            .lerp(Vec3::splat(target_scale) * Vec3::new(1.1, 2.4, 1.1), 0.2);
     }
 }
