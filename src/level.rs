@@ -25,7 +25,7 @@ use crate::{
     zipline::Zipline,
 };
 
-const STARTING_LEVEL: &str = "level_6.png";
+const STARTING_LEVEL: &str = "level_1.png";
 
 pub struct LevelPlugin;
 
